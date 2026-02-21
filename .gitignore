@@ -183,3 +183,4 @@ cython_debug/
 # Addition Files
 ontheweb.txt
 api.json
+GoogleService-Info.plist

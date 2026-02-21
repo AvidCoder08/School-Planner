@@ -90,12 +90,18 @@ def main(page: ft.Page) -> None:
             return "/dashboard"
         return "/onboarding"
 
+    async def _push_route(route: str) -> None:
+        await page.push_route(route)
+
+    def navigate(route: str) -> None:
+        page.run_task(_push_route, route)
+
     def go_guarded() -> None:
-        page.go(route_guard())
+        navigate(route_guard())
 
     def logout() -> None:
         app_state.session.clear()
-        page.go("/login")
+        navigate("/login")
 
     def route_change(_: ft.RouteChangeEvent) -> None:
         page.views.clear()
@@ -110,7 +116,7 @@ def main(page: ft.Page) -> None:
             )
         elif page.route == "/onboarding":
             if not app_state.session.is_authenticated:
-                page.go("/login")
+                navigate("/login")
                 return
             page.views.append(
                 build_onboarding_view(
@@ -121,48 +127,55 @@ def main(page: ft.Page) -> None:
             )
         elif page.route == "/dashboard":
             if not app_state.session.is_authenticated:
-                page.go("/login")
+                navigate("/login")
                 return
             page.views.append(
                 build_dashboard_view(
                     page=page,
                     app_state=app_state,
+                    on_manage_subjects=lambda: navigate("/subjects"),
+                    on_manage_tasks=lambda: navigate("/tasks"),
+                    on_manage_calendar=lambda: navigate("/calendar"),
+                    on_manage_grades=lambda: navigate("/grades"),
                     on_logout=logout,
                 )
             )
         elif page.route == "/subjects":
             if not app_state.session.is_authenticated:
-                page.go("/login")
+                navigate("/login")
                 return
             page.views.append(
                 build_subjects_view(
                     page=page,
                     app_state=app_state,
+                    on_back=lambda: navigate("/dashboard"),
                 )
             )
         elif page.route == "/tasks":
             if not app_state.session.is_authenticated:
-                page.go("/login")
+                navigate("/login")
                 return
             page.views.append(
                 build_tasks_view(
                     page=page,
                     app_state=app_state,
+                    on_back=lambda: navigate("/dashboard"),
                 )
             )
         elif page.route == "/calendar":
             if not app_state.session.is_authenticated:
-                page.go("/login")
+                navigate("/login")
                 return
             page.views.append(
                 build_events_view(
                     page=page,
                     app_state=app_state,
+                    on_back=lambda: navigate("/dashboard"),
                 )
             )
         elif page.route == "/grades":
             if not app_state.session.is_authenticated:
-                page.go("/login")
+                navigate("/login")
                 return
             page.views.append(
                 build_grades_view(
@@ -171,20 +184,20 @@ def main(page: ft.Page) -> None:
                 )
             )
         else:
-            page.go(route_guard())
+            navigate(route_guard())
             return
 
         page.update()
 
-    def on_resize(_: ft.WindowResizeEvent) -> None:
+    def on_resize(_) -> None:
         """Re-render the current view when the window is resized so the
         navigation layout can toggle between rail and bottom bar."""
         route_change(ft.RouteChangeEvent(route=page.route))
 
     page.on_route_change = route_change
     page.on_resize = on_resize
-    page.go(route_guard())
+    navigate(route_guard())
 
 
 if __name__ == "__main__":
-    ft.app(target=main)
+    ft.run(main)

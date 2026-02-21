@@ -74,7 +74,7 @@ def build_login_view(
         controls=[
             ft.AppBar(title=ft.Text("SkoolPlannr - Login")),
             ft.Container(
-                alignment=ft.alignment.center,
+                alignment=ft.Alignment.CENTER,
                 padding=20,
                 content=ft.Column(
                     horizontal_alignment=ft.CrossAxisAlignment.CENTER,
@@ -86,7 +86,7 @@ def build_login_view(
                         ft.Row(
                             alignment=ft.MainAxisAlignment.CENTER,
                             controls=[
-                                ft.ElevatedButton("Sign In", on_click=on_sign_in),
+                                ft.Button("Sign In", on_click=on_sign_in),
                                 ft.OutlinedButton("Sign Up", on_click=on_sign_up),
                             ],
                         ),

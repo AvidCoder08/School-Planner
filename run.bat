@@ -34,6 +34,6 @@ if errorlevel 1 (
 )
 
 set PYTHONPATH=src
-flet run src/skoolplannr/app.py
+flet run src/skoolplannr/app.py --web --port 8555
 
 endlocal

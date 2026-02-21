@@ -33,9 +33,9 @@ def build_events_view(page: ft.Page, app_state: AppState, on_back: Callable[[], 
         selected_index=0,
         animation_duration=300,
         tabs=[
-            ft.Tab(text="Upcoming"),
-            ft.Tab(text="Week"),
-            ft.Tab(text="Month"),
+            ft.Tab(label="Upcoming"),
+            ft.Tab(label="Week"),
+            ft.Tab(label="Month"),
         ],
         on_change=lambda _: refresh_events(),
     )
@@ -134,7 +134,7 @@ def build_events_view(page: ft.Page, app_state: AppState, on_back: Callable[[], 
                         bgcolor=ft.Colors.BLUE_GREY_50 if not is_today else ft.Colors.BLUE_100,
                         padding=5,
                         border_radius=5,
-                        alignment=ft.alignment.center
+                        alignment=ft.Alignment.CENTER
                     )
                 )
 
@@ -166,7 +166,7 @@ def build_events_view(page: ft.Page, app_state: AppState, on_back: Callable[[], 
             header_row = ft.Row(alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
             for day_name in ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]:
                 header_row.controls.append(
-                    ft.Container(content=ft.Text(day_name, weight=ft.FontWeight.BOLD, text_align=ft.TextAlign.CENTER), expand=1, alignment=ft.alignment.center)
+                    ft.Container(content=ft.Text(day_name, weight=ft.FontWeight.BOLD, text_align=ft.TextAlign.CENTER), expand=1, alignment=ft.Alignment.CENTER)
                 )
             month_col.controls.append(header_row)
 
@@ -286,12 +286,12 @@ def build_events_view(page: ft.Page, app_state: AppState, on_back: Callable[[], 
                 content=ft.Column(
                     scroll=ft.ScrollMode.AUTO,
                     controls=[
-                        ft.Row(controls=[ft.ElevatedButton("Back to Dashboard", on_click=lambda _: on_back())]),
+                        ft.Row(controls=[ft.Button("Back to Dashboard", on_click=lambda _: on_back())]),
                         ft.Text("Add Event", size=22, weight=ft.FontWeight.BOLD),
                         title,
                         ft.Row(controls=[event_type, subject]),
                         ft.Row(controls=[starts_at, ends_at]),
-                        ft.ElevatedButton("Add Event", on_click=on_add),
+                        ft.Button("Add Event", on_click=on_add),
                         status,
                         ft.Divider(),
                         ft.Text("Calendar", size=20, weight=ft.FontWeight.BOLD),

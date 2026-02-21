@@ -72,21 +72,18 @@ def build_onboarding_view(
 
             page.overlay.extend([start_picker, end_picker])
 
-            start_row = ft.Row(
-                controls=[
-                    start,
-                    ft.OutlinedButton("Pick", on_click=lambda _, p=start_picker: p.pick_date()),
-                ]
-            )
-            end_row = ft.Row(
-                controls=[
-                    end,
-                    ft.OutlinedButton("Pick", on_click=lambda _, p=end_picker: p.pick_date()),
-                ]
-            )
+            def make_open_handler(picker: ft.DatePicker):
+                def handler(_):
+                    picker.open = True
+                    page.update()
+
+                return handler
+
+            start.on_focus = make_open_handler(start_picker)
+            end.on_focus = make_open_handler(end_picker)
 
             term_inputs.append({"name": name, "start": start, "end": end})
-            term_fields.controls.extend([name, start_row, end_row, ft.Divider()])
+            term_fields.controls.extend([name, start, end, ft.Divider()])
 
         if term_fields.controls:
             term_fields.controls.pop()
@@ -185,35 +182,34 @@ def build_onboarding_view(
 
     page.overlay.extend([year_start_picker, year_end_picker])
 
+    def make_open_year_picker(picker: ft.DatePicker):
+        def handler(_):
+            picker.open = True
+            page.update()
+
+        return handler
+
+    year_start.on_focus = make_open_year_picker(year_start_picker)
+    year_end.on_focus = make_open_year_picker(year_end_picker)
+
     return ft.View(
         route="/onboarding",
         controls=[
             ft.AppBar(title=ft.Text("SkoolPlannr - Onboarding")),
             ft.Container(
-                alignment=ft.alignment.center,
                 padding=20,
+                expand=True,
                 content=ft.Column(
-                    horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                     scroll=ft.ScrollMode.AUTO,
                     controls=[
                         ft.Text("Set up your academic year", size=26, weight=ft.FontWeight.BOLD),
                         year_label,
-                        ft.Row(
-                            controls=[
-                                year_start,
-                                ft.OutlinedButton("Pick", on_click=lambda _: year_start_picker.pick_date()),
-                            ]
-                        ),
-                        ft.Row(
-                            controls=[
-                                year_end,
-                                ft.OutlinedButton("Pick", on_click=lambda _: year_end_picker.pick_date()),
-                            ]
-                        ),
+                        year_start,
+                        year_end,
                         ft.Divider(),
                         term_count,
                         term_fields,
-                        ft.ElevatedButton("Save & Continue", on_click=on_save),
+                        ft.Button("Save & Continue", on_click=on_save),
                         status_text,
                     ],
                 ),

@@ -73,6 +73,15 @@ def build_dashboard_view(
     fs = FirestoreService.from_settings()
     offline_banner = ft.Container(visible=False)
 
+    async def _push_route(route: str) -> None:
+        await page.push_route(route)
+
+    def navigate(route: str) -> None:
+        page.run_task(_push_route, route)
+
+    uid = app_state.session.uid
+    now = datetime.now()
+
     try:
         if uid:
             subjects = fs.list_subjects(uid)
@@ -101,7 +110,10 @@ def build_dashboard_view(
                 "term_summary": {k: _dt_to_str(v) for k, v in term_summary.items()},
                 "cgpa_value": cgpa_value
             }
-            page.client_storage.set("dashboard_cache", cache_data)
+            try:
+                page.client_storage.set("dashboard_cache", cache_data)
+            except (AttributeError, Exception):
+                pass  # Client storage not available, skip caching
         else:
             subjects, tasks, events, term_summary, cgpa_value = [], [], [], {}, None
             
@@ -118,7 +130,12 @@ def build_dashboard_view(
             margin=ft.margin.only(bottom=10)
         )
         
-        cached = page.client_storage.get("dashboard_cache")
+        cached = None
+        try:
+            cached = page.client_storage.get("dashboard_cache")
+        except (AttributeError, Exception):
+            pass  # Client storage not available
+        
         if cached:
              # Helper to restore datetimes
              def _str_to_dt(val):
@@ -166,19 +183,20 @@ def build_dashboard_view(
     
     term_dropdown = ft.Dropdown(
         width=300, 
-        label="Select Term",
-        on_change=lambda e: _on_term_change(e.control.value)
+        label="Select Term"
     )
 
     def _on_term_change(json_value: str):
         if not json_value:
-             return
+            return
         data = json.loads(json_value)
         new_year_id = data["year_id"]
         new_term_id = data["term_id"]
         if new_year_id and new_term_id and uid:
-             fs.set_active_term(uid, new_year_id, new_term_id)
-             page.go("/dashboard")
+            fs.set_active_term(uid, new_year_id, new_term_id)
+            navigate("/dashboard")
+
+    term_dropdown.on_change = lambda e: _on_term_change(e.control.value)
 
     if uid:
         try:
@@ -295,11 +313,11 @@ def build_dashboard_view(
                         ft.Row(
                             wrap=True,
                             controls=[
-                                ft.ElevatedButton("Manage Subjects", on_click=lambda _: on_manage_subjects()),
-                                ft.ElevatedButton("Manage Tasks", on_click=lambda _: on_manage_tasks()),
-                                ft.ElevatedButton("Open Calendar", on_click=lambda _: on_manage_calendar()),
-                                ft.ElevatedButton("Grades", on_click=lambda _: on_manage_grades()),
-                                ft.OutlinedButton("Refresh", on_click=lambda _: page.go("/dashboard")),
+                                ft.Button("Manage Subjects", on_click=lambda _: on_manage_subjects()),
+                                ft.Button("Manage Tasks", on_click=lambda _: on_manage_tasks()),
+                                ft.Button("Open Calendar", on_click=lambda _: on_manage_calendar()),
+                                ft.Button("Grades", on_click=lambda _: on_manage_grades()),
+                                ft.OutlinedButton("Refresh", on_click=lambda _: navigate("/dashboard")),
                                 ft.TextButton("Logout", on_click=lambda _: on_logout()),
                             ],
                         ),

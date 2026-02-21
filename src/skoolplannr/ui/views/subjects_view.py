@@ -146,7 +146,7 @@ def build_subjects_view(page: ft.Page, app_state: AppState, on_back: Callable[[]
                     controls=[
                         ft.Row(
                             controls=[
-                                ft.ElevatedButton("Back to Dashboard", on_click=lambda _: on_back()),
+                                ft.Button("Back to Dashboard", on_click=lambda _: on_back()),
                             ]
                         ),
                         ft.Text("Add Subject", size=22, weight=ft.FontWeight.BOLD),
@@ -155,7 +155,7 @@ def build_subjects_view(page: ft.Page, app_state: AppState, on_back: Callable[[]
                         location,
                         credits,
                         schedule,
-                        ft.ElevatedButton("Add Subject", on_click=on_add),
+                        ft.Button("Add Subject", on_click=on_add),
                         status,
                         ft.Divider(),
                         ft.Text("Your Subjects", size=20, weight=ft.FontWeight.BOLD),

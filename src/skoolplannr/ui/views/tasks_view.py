@@ -166,13 +166,13 @@ def build_tasks_view(page: ft.Page, app_state: AppState, on_back: Callable[[], N
                 content=ft.Column(
                     scroll=ft.ScrollMode.AUTO,
                     controls=[
-                        ft.Row(controls=[ft.ElevatedButton("Back to Dashboard", on_click=lambda _: on_back())]),
+                        ft.Row(controls=[ft.Button("Back to Dashboard", on_click=lambda _: on_back())]),
                         ft.Text("Add Task", size=22, weight=ft.FontWeight.BOLD),
                         title,
                         description,
                         ft.Row(controls=[due_at, task_type, priority]),
                         subject,
-                        ft.ElevatedButton("Add Task", on_click=on_add),
+                        ft.Button("Add Task", on_click=on_add),
                         status,
                         ft.Divider(),
                         ft.Text("Your Tasks", size=20, weight=ft.FontWeight.BOLD),

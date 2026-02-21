@@ -127,10 +127,6 @@ def main(page: ft.Page) -> None:
                 build_dashboard_view(
                     page=page,
                     app_state=app_state,
-                    on_manage_subjects=lambda: page.go("/subjects"),
-                    on_manage_tasks=lambda: page.go("/tasks"),
-                    on_manage_calendar=lambda: page.go("/calendar"),
-                    on_manage_grades=lambda: page.go("/grades"),
                     on_logout=logout,
                 )
             )
@@ -142,7 +138,6 @@ def main(page: ft.Page) -> None:
                 build_subjects_view(
                     page=page,
                     app_state=app_state,
-                    on_back=lambda: page.go("/dashboard"),
                 )
             )
         elif page.route == "/tasks":
@@ -153,7 +148,6 @@ def main(page: ft.Page) -> None:
                 build_tasks_view(
                     page=page,
                     app_state=app_state,
-                    on_back=lambda: page.go("/dashboard"),
                 )
             )
         elif page.route == "/calendar":
@@ -164,7 +158,6 @@ def main(page: ft.Page) -> None:
                 build_events_view(
                     page=page,
                     app_state=app_state,
-                    on_back=lambda: page.go("/dashboard"),
                 )
             )
         elif page.route == "/grades":
@@ -175,7 +168,6 @@ def main(page: ft.Page) -> None:
                 build_grades_view(
                     page=page,
                     app_state=app_state,
-                    on_back=lambda: page.go("/dashboard"),
                 )
             )
         else:
@@ -184,7 +176,13 @@ def main(page: ft.Page) -> None:
 
         page.update()
 
+    def on_resize(_: ft.WindowResizeEvent) -> None:
+        """Re-render the current view when the window is resized so the
+        navigation layout can toggle between rail and bottom bar."""
+        route_change(ft.RouteChangeEvent(route=page.route))
+
     page.on_route_change = route_change
+    page.on_resize = on_resize
     page.go(route_guard())
 
 

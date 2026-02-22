@@ -1,203 +1,285 @@
-import sys
-from pathlib import Path
-import threading
-import time
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
+from typing import Dict, List, Optional
 
-import flet as ft
+from fastapi import FastAPI, Header, HTTPException, status
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, Field
 
-if __package__ is None or __package__ == "":
-    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
-from skoolplannr.services.firestore_service import FirestoreService
-from skoolplannr.state.app_state import app_state
-from skoolplannr.ui.views.dashboard_view import build_dashboard_view
-from skoolplannr.ui.views.login_view import build_login_view
-from skoolplannr.ui.views.onboarding_view import build_onboarding_view
-from skoolplannr.ui.views.events_view import build_events_view
-from skoolplannr.ui.views.grades_view import build_grades_view
-from skoolplannr.ui.views.subjects_view import build_subjects_view
-from skoolplannr.ui.views.tasks_view import build_tasks_view
+from skoolplannr.services.auth_service import AuthServiceError, FirebaseAuthService
+from skoolplannr.services.firestore_service import FirestoreService, FirestoreServiceError
 
 
-def main(page: ft.Page) -> None:
-    page.title = "SkoolPlannr"
-    page.theme_mode = ft.ThemeMode.SYSTEM
-    
-    notified_ids = set()
+app = FastAPI(title="SkoolPlannr API", version="1.0.0")
 
-    def notification_worker():
-        while True:
-            time.sleep(60)
-            uid = app_state.session.uid
-            if not uid:
-                continue
-
-            try:
-                fs = FirestoreService.from_settings()
-                tasks = fs.list_tasks(uid, include_completed=False)
-                events = fs.list_events(uid)
-
-                now = datetime.now(timezone.utc)
-                warning_threshold = now + timedelta(minutes=15)
-
-                notifications_to_show = []
-
-                for task in tasks:
-                    due = task.get("due_at")
-                    if not due or task.get("id") in notified_ids:
-                        continue
-                    if hasattr(due, "tzinfo") and due.tzinfo is None:
-                        due = due.replace(tzinfo=timezone.utc)
-                    if now <= due <= warning_threshold:
-                        notifications_to_show.append(f"Task Due Soon: {task.get('title')}")
-                        notified_ids.add(task.get("id"))
-
-                for event in events:
-                    start = event.get("starts_at")
-                    if not start or event.get("id") in notified_ids:
-                        continue
-                    if hasattr(start, "tzinfo") and start.tzinfo is None:
-                        start = start.replace(tzinfo=timezone.utc)
-                    if now <= start <= warning_threshold:
-                        notifications_to_show.append(f"Event Starting Soon: {event.get('title')}")
-                        notified_ids.add(event.get("id"))
-
-                for msg in notifications_to_show:
-                    snack = ft.SnackBar(ft.Text(msg, weight=ft.FontWeight.BOLD), bgcolor=ft.Colors.BLUE_800)
-                    page.snack_bar = snack
-                    snack.open = True
-                    page.update()
-                    time.sleep(2) # Stagger multiple notifications
-
-            except Exception as e:
-                # Silently ignore errors in polling thread (e.g. offline)
-                pass
-
-    bg_thread = threading.Thread(target=notification_worker, daemon=True)
-    bg_thread.start()
-
-    def has_completed_onboarding() -> bool:
-        if not app_state.session.uid:
-            return False
-        fs = FirestoreService.from_settings()
-        return fs.has_onboarding(app_state.session.uid)
-
-    def route_guard() -> str:
-        if not app_state.session.is_authenticated:
-            return "/login"
-        if has_completed_onboarding():
-            return "/dashboard"
-        return "/onboarding"
-
-    async def _push_route(route: str) -> None:
-        await page.push_route(route)
-
-    def navigate(route: str) -> None:
-        page.run_task(_push_route, route)
-
-    def go_guarded() -> None:
-        navigate(route_guard())
-
-    def logout() -> None:
-        app_state.session.clear()
-        navigate("/login")
-
-    def route_change(_: ft.RouteChangeEvent) -> None:
-        page.views.clear()
-
-        if page.route == "/login":
-            page.views.append(
-                build_login_view(
-                    page=page,
-                    app_state=app_state,
-                    on_authenticated=go_guarded,
-                )
-            )
-        elif page.route == "/onboarding":
-            if not app_state.session.is_authenticated:
-                navigate("/login")
-                return
-            page.views.append(
-                build_onboarding_view(
-                    page=page,
-                    app_state=app_state,
-                    on_complete=go_guarded,
-                )
-            )
-        elif page.route == "/dashboard":
-            if not app_state.session.is_authenticated:
-                navigate("/login")
-                return
-            page.views.append(
-                build_dashboard_view(
-                    page=page,
-                    app_state=app_state,
-                    on_manage_subjects=lambda: navigate("/subjects"),
-                    on_manage_tasks=lambda: navigate("/tasks"),
-                    on_manage_calendar=lambda: navigate("/calendar"),
-                    on_manage_grades=lambda: navigate("/grades"),
-                    on_logout=logout,
-                )
-            )
-        elif page.route == "/subjects":
-            if not app_state.session.is_authenticated:
-                navigate("/login")
-                return
-            page.views.append(
-                build_subjects_view(
-                    page=page,
-                    app_state=app_state,
-                    on_back=lambda: navigate("/dashboard"),
-                )
-            )
-        elif page.route == "/tasks":
-            if not app_state.session.is_authenticated:
-                navigate("/login")
-                return
-            page.views.append(
-                build_tasks_view(
-                    page=page,
-                    app_state=app_state,
-                    on_back=lambda: navigate("/dashboard"),
-                )
-            )
-        elif page.route == "/calendar":
-            if not app_state.session.is_authenticated:
-                navigate("/login")
-                return
-            page.views.append(
-                build_events_view(
-                    page=page,
-                    app_state=app_state,
-                    on_back=lambda: navigate("/dashboard"),
-                )
-            )
-        elif page.route == "/grades":
-            if not app_state.session.is_authenticated:
-                navigate("/login")
-                return
-            page.views.append(
-                build_grades_view(
-                    page=page,
-                    app_state=app_state,
-                )
-            )
-        else:
-            navigate(route_guard())
-            return
-
-        page.update()
-
-    def on_resize(_) -> None:
-        """Re-render the current view when the window is resized so the
-        navigation layout can toggle between rail and bottom bar."""
-        route_change(ft.RouteChangeEvent(route=page.route))
-
-    page.on_route_change = route_change
-    page.on_resize = on_resize
-    navigate(route_guard())
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
-if __name__ == "__main__":
-    ft.run(main)
+class AuthPayload(BaseModel):
+    email: str
+    password: str
+
+
+class TermPayload(BaseModel):
+    name: str
+    start_date: datetime
+    end_date: datetime
+
+
+class OnboardingPayload(BaseModel):
+    year_label: str
+    year_start: datetime
+    year_end: datetime
+    terms: List[TermPayload]
+
+
+class SubjectPayload(BaseModel):
+    name: str
+    instructor: str = ""
+    location: str = ""
+    credits: int = Field(ge=1)
+    schedule_slots: List[Dict[str, str]] = Field(default_factory=list)
+
+
+class TaskPayload(BaseModel):
+    title: str
+    description: str = ""
+    subject_id: Optional[str] = None
+    task_type: str
+    due_at: datetime
+    priority: str
+
+
+class TaskCompletionPayload(BaseModel):
+    completed: bool
+
+
+class EventPayload(BaseModel):
+    title: str
+    event_type: str
+    starts_at: datetime
+    ends_at: datetime
+    subject_id: Optional[str] = None
+
+
+class GradePayload(BaseModel):
+    raw_scores: Dict[str, float]
+
+
+def _required_uid(x_user_id: Optional[str]) -> str:
+    if not x_user_id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing x-user-id header")
+    return x_user_id
+
+
+@app.get("/health")
+def health() -> Dict[str, str]:
+    return {"status": "ok"}
+
+
+@app.post("/auth/signup")
+def sign_up(payload: AuthPayload) -> Dict:
+    auth = FirebaseAuthService.from_settings()
+    fs = FirestoreService.from_settings()
+    try:
+        result = auth.sign_up(payload.email, payload.password)
+        fs.ensure_user_profile(result.uid, result.email)
+        return {
+            "uid": result.uid,
+            "email": result.email,
+            "id_token": result.id_token,
+            "refresh_token": result.refresh_token,
+        }
+    except AuthServiceError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except FirestoreServiceError as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
+
+
+@app.post("/auth/login")
+def login(payload: AuthPayload) -> Dict:
+    auth = FirebaseAuthService.from_settings()
+    try:
+        result = auth.sign_in(payload.email, payload.password)
+        return {
+            "uid": result.uid,
+            "email": result.email,
+            "id_token": result.id_token,
+            "refresh_token": result.refresh_token,
+        }
+    except AuthServiceError as exc:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)) from exc
+
+
+@app.get("/profile")
+def get_profile(x_user_id: Optional[str] = Header(default=None)) -> Dict:
+    uid = _required_uid(x_user_id)
+    fs = FirestoreService.from_settings()
+    try:
+        profile = fs.get_profile(uid)
+        return {
+            "uid": uid,
+            "profile": profile,
+            "has_onboarding": fs.has_onboarding(uid),
+        }
+    except FirestoreServiceError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@app.post("/onboarding")
+def save_onboarding(payload: OnboardingPayload, x_user_id: Optional[str] = Header(default=None)) -> Dict[str, str]:
+    uid = _required_uid(x_user_id)
+    fs = FirestoreService.from_settings()
+    try:
+        fs.save_onboarding(
+            uid=uid,
+            year_label=payload.year_label,
+            year_start=payload.year_start,
+            year_end=payload.year_end,
+            terms=[term.model_dump() for term in payload.terms],
+        )
+        return {"status": "saved"}
+    except FirestoreServiceError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@app.get("/subjects")
+def list_subjects(x_user_id: Optional[str] = Header(default=None)) -> List[Dict]:
+    uid = _required_uid(x_user_id)
+    fs = FirestoreService.from_settings()
+    try:
+        return fs.list_subjects(uid)
+    except FirestoreServiceError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@app.post("/subjects")
+def create_subject(payload: SubjectPayload, x_user_id: Optional[str] = Header(default=None)) -> Dict[str, str]:
+    uid = _required_uid(x_user_id)
+    fs = FirestoreService.from_settings()
+    try:
+        subject_id = fs.create_subject(uid, **payload.model_dump())
+        return {"id": subject_id}
+    except FirestoreServiceError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@app.delete("/subjects/{subject_id}")
+def delete_subject(subject_id: str, x_user_id: Optional[str] = Header(default=None)) -> Dict[str, str]:
+    uid = _required_uid(x_user_id)
+    fs = FirestoreService.from_settings()
+    try:
+        fs.delete_subject(uid, subject_id)
+        return {"status": "deleted"}
+    except FirestoreServiceError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@app.get("/tasks")
+def list_tasks(
+    include_completed: bool = True,
+    x_user_id: Optional[str] = Header(default=None),
+) -> List[Dict]:
+    uid = _required_uid(x_user_id)
+    fs = FirestoreService.from_settings()
+    try:
+        return fs.list_tasks(uid, include_completed=include_completed)
+    except FirestoreServiceError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@app.post("/tasks")
+def create_task(payload: TaskPayload, x_user_id: Optional[str] = Header(default=None)) -> Dict[str, str]:
+    uid = _required_uid(x_user_id)
+    fs = FirestoreService.from_settings()
+    try:
+        task_id = fs.create_task(uid, **payload.model_dump())
+        return {"id": task_id}
+    except FirestoreServiceError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@app.patch("/tasks/{task_id}/completed")
+def set_task_completed(
+    task_id: str,
+    payload: TaskCompletionPayload,
+    x_user_id: Optional[str] = Header(default=None),
+) -> Dict[str, str]:
+    uid = _required_uid(x_user_id)
+    fs = FirestoreService.from_settings()
+    try:
+        fs.set_task_completed(uid, task_id, payload.completed)
+        return {"status": "updated"}
+    except FirestoreServiceError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@app.delete("/tasks/{task_id}")
+def delete_task(task_id: str, x_user_id: Optional[str] = Header(default=None)) -> Dict[str, str]:
+    uid = _required_uid(x_user_id)
+    fs = FirestoreService.from_settings()
+    try:
+        fs.delete_task(uid, task_id)
+        return {"status": "deleted"}
+    except FirestoreServiceError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@app.get("/events")
+def list_events(x_user_id: Optional[str] = Header(default=None)) -> List[Dict]:
+    uid = _required_uid(x_user_id)
+    fs = FirestoreService.from_settings()
+    try:
+        return fs.list_events(uid)
+    except FirestoreServiceError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@app.post("/events")
+def create_event(payload: EventPayload, x_user_id: Optional[str] = Header(default=None)) -> Dict[str, str]:
+    uid = _required_uid(x_user_id)
+    fs = FirestoreService.from_settings()
+    try:
+        event_id = fs.create_event(uid, **payload.model_dump())
+        return {"id": event_id}
+    except FirestoreServiceError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@app.delete("/events/{event_id}")
+def delete_event(event_id: str, x_user_id: Optional[str] = Header(default=None)) -> Dict[str, str]:
+    uid = _required_uid(x_user_id)
+    fs = FirestoreService.from_settings()
+    try:
+        fs.delete_event(uid, event_id)
+        return {"status": "deleted"}
+    except FirestoreServiceError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@app.get("/grades")
+def list_grades(x_user_id: Optional[str] = Header(default=None)) -> List[Dict]:
+    uid = _required_uid(x_user_id)
+    fs = FirestoreService.from_settings()
+    try:
+        return fs.list_grades(uid)
+    except FirestoreServiceError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@app.post("/grades/{subject_id}")
+def save_grade(subject_id: str, payload: GradePayload, x_user_id: Optional[str] = Header(default=None)) -> Dict:
+    uid = _required_uid(x_user_id)
+    fs = FirestoreService.from_settings()
+    try:
+        return fs.save_assessments_and_grade(uid, subject_id, payload.raw_scores)
+    except FirestoreServiceError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc

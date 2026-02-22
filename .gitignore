@@ -184,3 +184,6 @@ cython_debug/
 ontheweb.txt
 api.json
 GoogleService-Info.plist
+google-services.json
+frontend/flutter/.dart_tool/
+frontend/flutter/.flutter-plugins-dependencies

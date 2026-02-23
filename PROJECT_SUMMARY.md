@@ -8,7 +8,7 @@ SkoolPlannr is a student planner and grade tracker with a Python backend and a F
 - Entrypoint: `src/skoolplannr/app.py`
 - Services:
   - `src/skoolplannr/services/auth_service.py`
-  - `src/skoolplannr/services/firestore_service.py`
+  - `src/skoolplannr/services/appwrite_service.py`
 - Domain logic:
   - `src/skoolplannr/core/grades.py`
   - `src/skoolplannr/core/gpa.py`

@@ -1,6 +1,7 @@
 from dataclasses import dataclass
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 import requests
+from requests import RequestException
 
 from skoolplannr.config.settings import settings
 
@@ -17,52 +18,72 @@ class AuthResult:
     refresh_token: str
 
 
-class FirebaseAuthService:
-    BASE_URL = "https://identitytoolkit.googleapis.com/v1"
+class AppwriteAuthService:
+    SIGN_UP_PATH = "/account"
+    LOGIN_PATH = "/account/sessions/email"
 
-    def __init__(self, api_key: str) -> None:
-        if not api_key:
-            raise AuthServiceError("Missing FIREBASE_API_KEY in environment")
-        self.api_key = api_key
+    def __init__(self, endpoint: str, project_id: str) -> None:
+        if not endpoint:
+            raise AuthServiceError("Missing APPWRITE_ENDPOINT in environment")
+        if not project_id:
+            raise AuthServiceError("Missing APPWRITE_PROJECT_ID in environment")
+        self.endpoint = endpoint.rstrip("/")
+        self.project_id = project_id
 
     @classmethod
-    def from_settings(cls) -> "FirebaseAuthService":
-        return cls(settings.firebase_api_key)
+    def from_settings(cls) -> "AppwriteAuthService":
+        return cls(settings.appwrite_endpoint, settings.appwrite_project_id)
 
-    def sign_up(self, email: str, password: str) -> AuthResult:
+    def sign_up(self, email: str, password: str, name: Optional[str] = None) -> AuthResult:
         payload = {
+            "userId": "unique()",
             "email": email,
             "password": password,
-            "returnSecureToken": True,
         }
-        response = self._post("accounts:signUp", payload)
-        return self._to_result(response)
+        if name and name.strip():
+            payload["name"] = name.strip()
+        self._post(self.SIGN_UP_PATH, payload)
+        return self.sign_in(email, password)
 
     def sign_in(self, email: str, password: str) -> AuthResult:
         payload = {
             "email": email,
             "password": password,
-            "returnSecureToken": True,
         }
-        response = self._post("accounts:signInWithPassword", payload)
-        return self._to_result(response)
+        response = self._post(self.LOGIN_PATH, payload)
+        return self._to_result(response, email)
 
     def _post(self, path: str, payload: Dict[str, Any]) -> Dict[str, Any]:
-        url = f"{self.BASE_URL}/{path}?key={self.api_key}"
-        res = requests.post(url, json=payload, timeout=15)
-        data = res.json()
+        url = f"{self.endpoint}{path}"
+        headers = {
+            "X-Appwrite-Project": self.project_id,
+            "Content-Type": "application/json",
+        }
+        try:
+            res = requests.post(url, headers=headers, json=payload, timeout=15)
+        except RequestException as exc:
+            raise AuthServiceError("AUTH_SERVICE_UNAVAILABLE") from exc
+        try:
+            data = res.json()
+        except ValueError:
+            raise AuthServiceError("AUTH_SERVICE_UNAVAILABLE")
 
         if res.status_code >= 400:
-            error_key = data.get("error", {}).get("message", "AUTH_ERROR")
+            error_key = str(data.get("message") or data.get("type") or "AUTH_ERROR")
             raise AuthServiceError(error_key)
 
         return data
 
     @staticmethod
-    def _to_result(data: Dict[str, Any]) -> AuthResult:
+    def _to_result(data: Dict[str, Any], email: str) -> AuthResult:
+        session_id = str(data.get("$id") or "")
+        session_secret = str(data.get("secret") or "")
+        uid = str(data.get("userId") or "")
+        if not uid:
+            raise AuthServiceError("INVALID_APPWRITE_SESSION")
         return AuthResult(
-            uid=data["localId"],
-            email=data["email"],
-            id_token=data["idToken"],
-            refresh_token=data["refreshToken"],
+            uid=uid,
+            email=email,
+            id_token=session_secret,
+            refresh_token=session_id,
         )

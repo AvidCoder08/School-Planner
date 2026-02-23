@@ -50,15 +50,15 @@ It is written for this repository and matches the code currently in place.
 ## 2.1 Function code location
 Use this folder as Function root:
 
-- `appwrite/functions/backend`
+- repository root (this project root)
 
 Entrypoint:
 
-- `main.py`
+- `appwrite/functions/backend/main.py`
 
 Build command:
 
-- `pip install -r requirements.txt`
+- `pip install -r appwrite/functions/backend/requirements.txt`
 
 Runtime:
 
@@ -70,9 +70,9 @@ Runtime:
 3. Name it: `school-planner-backend` (or similar).
 4. Choose Python runtime.
 5. Configure source/deploy from Git (recommended), or upload manually.
-6. Set root directory to `appwrite/functions/backend`.
-7. Set entrypoint to `main.py`.
-8. Set build command to `pip install -r requirements.txt`.
+6. Set root directory to repository root.
+7. Set entrypoint to `appwrite/functions/backend/main.py`.
+8. Set build command to `pip install -r appwrite/functions/backend/requirements.txt`.
 
 ## 2.3 Environment variables for function
 Add these in Function Settings → Environment Variables:

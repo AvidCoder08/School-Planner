@@ -29,9 +29,9 @@ The function serves the same API routes used by Flutter:
 
 1. Go to **Functions → Create function**.
 2. Runtime: **Python**.
-3. Entrypoint: `main.py`.
-4. Root directory: `appwrite/functions/backend`.
-5. Build command: `pip install -r requirements.txt`.
+3. Root directory: repository root.
+4. Entrypoint: `appwrite/functions/backend/main.py`.
+5. Build command: `pip install -r appwrite/functions/backend/requirements.txt`.
 6. In **Execute access**, allow the clients you need (for domain calls, use `Any`).
 7. In **Domains**, use the generated Appwrite global domain (or add a custom domain).
 

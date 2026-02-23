@@ -7,8 +7,22 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-ROOT_DIR = Path(__file__).resolve().parents[3]
-SRC_DIR = ROOT_DIR / "src"
+def _find_src_dir(start_file: Path) -> Optional[Path]:
+    for parent in (start_file.parent, *start_file.parents):
+        candidate = parent / "src"
+        if (candidate / "skoolplannr").exists():
+            return candidate
+    return None
+
+
+SRC_DIR = _find_src_dir(Path(__file__).resolve())
+if SRC_DIR is None:
+    raise RuntimeError(
+        "Could not locate src/skoolplannr. Set Appwrite Function root to repository root, "
+        "entrypoint to appwrite/functions/backend/main.py, and build command to "
+        "pip install -r appwrite/functions/backend/requirements.txt"
+    )
+
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 

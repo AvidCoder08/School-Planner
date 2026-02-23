@@ -7,11 +7,41 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+def _src_dir_from_settings_file(settings_file: Path) -> Optional[Path]:
+    try:
+        if settings_file.name == "settings.py" and settings_file.parent.name == "config":
+            package_dir = settings_file.parent.parent
+            if package_dir.name == "skoolplannr":
+                return package_dir.parent
+    except Exception:
+        return None
+    return None
+
+
 def _find_src_dir(start_file: Path) -> Optional[Path]:
+    env_src = os.getenv("SKOOLPLANNR_SRC_DIR", "").strip()
+    if env_src:
+        env_path = Path(env_src)
+        if (env_path / "skoolplannr" / "config" / "settings.py").exists():
+            return env_path
+
     for parent in (start_file.parent, *start_file.parents):
+        if (parent / "skoolplannr" / "config" / "settings.py").exists():
+            return parent
+
         candidate = parent / "src"
         if (candidate / "skoolplannr").exists():
             return candidate
+
+    for root in (start_file.parent, *start_file.parents):
+        try:
+            for settings_file in root.glob("**/skoolplannr/config/settings.py"):
+                src_dir = _src_dir_from_settings_file(settings_file)
+                if src_dir is not None:
+                    return src_dir
+        except Exception:
+            continue
+
     return None
 
 

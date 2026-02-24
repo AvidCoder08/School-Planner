@@ -14,15 +14,23 @@ dependencies:
     sdk: flutter
   http: ^1.2.2
   shared_preferences: ^2.3.2
-  flutter_secure_storage: ^9.2.2
+  flutter_secure_storage: ^10.0.0
   dynamic_color: ^1.7.0
   fluent_ui: ^4.12.0
-  appwrite: 21.1.0
+  appwrite: ^21.4.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^4.0.0
+  flutter_lints: ^6.0.0
+  msix: ^3.16.13
 
 flutter:
   uses-material-design: true
+
+msix_config:
+  display_name: SchoolPlannr
+  publisher_display_name: notacoder
+  identity_name: notacoder.schoolplannr
+  msix_version: 1.0.0.0
+  logo_path: ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-1024x1024@1x.png

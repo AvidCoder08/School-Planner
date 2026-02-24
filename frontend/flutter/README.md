@@ -20,7 +20,11 @@ To override, pass a Dart define:
 flutter run -d chrome --dart-define=API_BASE_URL=http://localhost:8555
 ```
 
-For Android emulator local backend testing, use:
+For local backend testing on Android emulator, use both defines:
 ```bash
-flutter run -d emulator-5554 --dart-define=API_BASE_URL=http://10.0.2.2:8555
+flutter run -d emulator-5554 \
+  --dart-define=API_BASE_URL=http://10.0.2.2:8555 \
+  --dart-define=ALLOW_LOCAL_API=true
 ```
+
+Note: Local loopback URLs (10.0.2.2, localhost, 127.0.0.1) are blocked by default in release builds for security.

@@ -6,6 +6,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
+from urllib.parse import parse_qs
 
 def _src_dir_from_settings_file(settings_file: Path) -> Optional[Path]:
     try:
@@ -121,23 +122,45 @@ def _empty_response(context: Any, status_code: int = 204, req: Any = None):
 
 
 def _parse_body(req: Any) -> Dict[str, Any]:
-    body_json = getattr(req, "bodyJson", None)
-    if isinstance(body_json, dict):
-        return body_json
+    def _from_candidate(candidate: Any) -> Optional[Dict[str, Any]]:
+        if candidate is None:
+            return None
 
-    body_text = getattr(req, "bodyText", "")
-    if not body_text:
-        return {}
+        if isinstance(candidate, (bytes, bytearray)):
+            candidate = candidate.decode("utf-8", errors="ignore")
 
-    try:
-        parsed = json.loads(body_text)
-    except json.JSONDecodeError as exc:
-        raise HttpError(400, "Invalid JSON payload") from exc
+        if isinstance(candidate, str):
+            text = candidate.strip()
+            if not text:
+                return None
+            try:
+                parsed = json.loads(text)
+            except json.JSONDecodeError:
+                parsed_qs = parse_qs(text, keep_blank_values=True)
+                if parsed_qs:
+                    return {k: (v[-1] if isinstance(v, list) and v else "") for k, v in parsed_qs.items()}
+                return None
+            candidate = parsed
 
-    if isinstance(parsed, dict):
-        return parsed
+        if isinstance(candidate, dict):
+            if "body" in candidate:
+                nested = _from_candidate(candidate.get("body"))
+                if nested is not None:
+                    return nested
 
-    raise HttpError(400, "JSON payload must be an object")
+            if "bodyJson" in candidate and isinstance(candidate.get("bodyJson"), dict):
+                return candidate.get("bodyJson")
+
+            return candidate
+
+        return None
+
+    for attr in ("bodyJson", "body", "bodyText", "payload", "rawBody"):
+        parsed = _from_candidate(getattr(req, attr, None))
+        if parsed is not None:
+            return parsed
+
+    return {}
 
 
 def _require_user_id(req: Any) -> str:

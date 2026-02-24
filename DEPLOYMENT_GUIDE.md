@@ -152,25 +152,18 @@ flutter build web --release --dart-define=API_BASE_URL=https://<function-domain>
 
 This compile-time define is mandatory for production.
 
-## 3.2 Option A: Firebase Hosting (recommended)
-From `frontend/flutter`:
+## 3.2 Option A: Appwrite Sites (recommended)
+Use Appwrite Sites to host the Flutter web build.
 
-```bash
-npm install -g firebase-tools
-firebase login
-firebase init hosting
-```
-
-During init:
-- Public directory: `build/web`
-- Single page app rewrite: `Yes`
-- Overwrite index file: `No`
-
-Deploy:
-
-```bash
-firebase deploy --only hosting
-```
+In Appwrite Console:
+1. Go to **Sites** → **Create site**.
+2. Choose static site deployment (Git or manual upload).
+3. If using Git, set:
+  - Root directory: `frontend/flutter`
+  - Build command: `flutter build web --release --dart-define=API_BASE_URL=https://<function-domain>`
+  - Output directory: `build/web`
+4. If using manual upload, first build locally and upload `frontend/flutter/build/web`.
+5. Open the generated site domain and verify the app loads.
 
 ## 3.3 Option B: Any static host
 Upload contents of `frontend/flutter/build/web` to your host (Cloudflare Pages, Netlify, Vercel static, S3, etc.).
@@ -186,7 +179,7 @@ Upload contents of `frontend/flutter/build/web` to your host (Cloudflare Pages, 
 
 ---
 
-## 4) Android deployment (AAB release)
+## 4) Android deployment (APK release)
 
 ## 4.1 Keystore and signing
 Your repo is already wired to use `frontend/flutter/android/key.properties`.
@@ -209,27 +202,24 @@ Current app id configured:
 
 Keep this stable after publishing.
 
-## 4.3 Build release app bundle
+## 4.3 Build release APK
 From `frontend/flutter`:
 
 ```bash
 flutter clean
 flutter pub get
-flutter build appbundle --release --dart-define=API_BASE_URL=https://<function-domain>
+flutter build apk --release --dart-define=API_BASE_URL=https://<function-domain>
 ```
 
 Output:
 
-- `build/app/outputs/bundle/release/app-release.aab`
+- `build/app/outputs/flutter-apk/app-release.apk`
 
-## 4.4 Play Console upload
-1. Open Google Play Console.
-2. Create app (or select existing).
-3. Go to **Testing** → **Internal testing**.
-4. Upload `app-release.aab`.
-5. Add testers and publish internal rollout.
-6. Validate login, CRUD, attendance, grades.
-7. Promote to closed/open/production tracks when stable.
+## 4.4 APK distribution/testing
+1. Build `app-release.apk`.
+2. Share APK with testers (direct file share or Play Console **Internal app sharing**).
+3. Install on test devices and validate login, CRUD, attendance, grades.
+4. For production Play Store release, build an AAB separately.
 
 ---
 
@@ -304,7 +294,7 @@ firebase deploy --only hosting
 cd frontend/flutter
 flutter clean
 flutter pub get
-flutter build appbundle --release --dart-define=API_BASE_URL=https://<function-domain>
+flutter build apk --release --dart-define=API_BASE_URL=https://<function-domain>
 ```
 
 ---
@@ -315,7 +305,7 @@ flutter build appbundle --release --dart-define=API_BASE_URL=https://<function-d
 - [ ] `/health` returns ok on function domain
 - [ ] CORS includes production web origin
 - [ ] Web deployed with correct `API_BASE_URL`
-- [ ] Android AAB built with correct `API_BASE_URL`
+- [ ] Android APK built with correct `API_BASE_URL`
 - [ ] Internal Android test pass completed
 - [ ] Appwrite platforms (web/android) configured
 - [ ] No secrets committed to git

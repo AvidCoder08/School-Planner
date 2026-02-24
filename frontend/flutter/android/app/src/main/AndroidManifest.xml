@@ -6,7 +6,7 @@
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round">
         <activity
-            android:name=".MainActivity"
+            android:name="com.example.skoolplannr_flutter.MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
             android:taskAffinity=""

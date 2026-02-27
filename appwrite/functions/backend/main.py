@@ -80,11 +80,31 @@ def _headers(req: Any) -> Dict[str, str]:
 
 def _normalize_path(req: Any) -> str:
     path = str(getattr(req, "path", "") or "/")
+    if "?" in path:
+        path = path.split("?", 1)[0]
     if not path.startswith("/"):
         path = f"/{path}"
     if len(path) > 1 and path.endswith("/"):
         path = path[:-1]
     return path
+
+
+def _query_params(req: Any) -> Dict[str, str]:
+    query = getattr(req, "query", None)
+
+    if isinstance(query, dict):
+        return {str(key): str(value[-1] if isinstance(value, list) and value else value) for key, value in query.items()}
+
+    if isinstance(query, str):
+        parsed = parse_qs(query, keep_blank_values=True)
+        return {key: (values[-1] if isinstance(values, list) and values else "") for key, values in parsed.items()}
+
+    query_string = getattr(req, "query_string", None)
+    if isinstance(query_string, str) and query_string.strip():
+        parsed = parse_qs(query_string, keep_blank_values=True)
+        return {key: (values[-1] if isinstance(values, list) and values else "") for key, values in parsed.items()}
+
+    return {}
 
 
 def _cors_headers(req: Any) -> Dict[str, str]:
@@ -353,7 +373,7 @@ def _delete_subject(req: Any, subject_id: str) -> Dict[str, Any]:
 
 def _list_tasks(req: Any) -> Any:
     uid = _require_user_id(req)
-    include_completed = _to_bool(getattr(req, "query", {}).get("include_completed"), default=True)
+    include_completed = _to_bool(_query_params(req).get("include_completed"), default=True)
     fs = AppwriteService.from_settings()
     try:
         return fs.list_tasks(uid, include_completed=include_completed)

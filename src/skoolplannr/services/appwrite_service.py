@@ -133,8 +133,25 @@ class AppwriteService:
             return None
         return docs[0]
 
+    def _find_profile_document(self, uid: str) -> Optional[Dict]:
+        try:
+            return self._get_document(self.users_collection_id, uid)
+        except AppwriteServiceError:
+            return self._find_first(
+                self.users_collection_id,
+                [
+                    Query.equal("uid", [uid]),
+                ],
+            )
+
+    def _require_profile_document_id(self, uid: str) -> str:
+        profile = self._find_profile_document(uid)
+        if not profile:
+            raise AppwriteServiceError("User profile not found.")
+        return str(profile["$id"])
+
     def ensure_user_profile(self, uid: str, email: str) -> None:
-        profile = self.get_profile(uid)
+        profile = self._find_profile_document(uid)
         if profile:
             return
         self._create_document(
@@ -150,12 +167,8 @@ class AppwriteService:
         )
 
     def get_profile(self, uid: str) -> Dict:
-        try:
-            return self.db.get_document(self.database_id, self.users_collection_id, uid)
-        except AppwriteException as exc:
-            if getattr(exc, "code", None) == 404:
-                return {}
-            raise AppwriteServiceError(str(exc)) from exc
+        profile = self._find_profile_document(uid)
+        return profile or {}
 
     def has_onboarding(self, uid: str) -> bool:
         year = self._find_first(
@@ -206,9 +219,10 @@ class AppwriteService:
             if index == 0:
                 active_term_id = created["$id"]
 
+        profile_document_id = self._require_profile_document_id(uid)
         self._update_document(
             self.users_collection_id,
-            uid,
+            profile_document_id,
             {
                 "active_year_id": year["$id"],
                 "active_term_id": active_term_id,
@@ -272,9 +286,10 @@ class AppwriteService:
         return results
 
     def set_active_term(self, uid: str, year_id: str, term_id: str) -> None:
+        profile_document_id = self._require_profile_document_id(uid)
         self._update_document(
             self.users_collection_id,
-            uid,
+            profile_document_id,
             {
                 "active_year_id": year_id,
                 "active_term_id": term_id,
@@ -677,7 +692,8 @@ class AppwriteService:
             raise AppwriteServiceError("No semester results found for CGPA.")
 
         cgpa = calculate_cgpa(semester_results)
-        self._update_document(self.users_collection_id, uid, {"cgpa": cgpa})
+        profile_document_id = self._require_profile_document_id(uid)
+        self._update_document(self.users_collection_id, profile_document_id, {"cgpa": cgpa})
         return cgpa, trend
 
     def get_cached_cgpa(self, uid: str) -> Optional[float]:

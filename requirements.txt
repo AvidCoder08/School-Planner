@@ -1,3 +1,4 @@
+<<<<<<< ours
 appwrite==11.1.0
 python-dotenv==1.1.1
 python-dateutil==2.9.0.post0
@@ -6,3 +7,6 @@ pesuacademy==1.0.0
 pytest==8.4.1
 fastapi==0.116.1
 uvicorn[standard]==0.35.0
+=======
+flet>=0.28.0
+>>>>>>> theirs

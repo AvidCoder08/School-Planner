@@ -184,7 +184,7 @@ class AppwriteService:
                 "label": year_label,
                 "start_date": self._to_iso(year_start),
                 "end_date": self._to_iso(year_end),
-                "created_at": self._to_iso(datetime.now(timezone.utc)),
+                "created_date": self._to_iso(datetime.now(timezone.utc)),
             },
         )
 
@@ -295,12 +295,16 @@ class AppwriteService:
         for doc in docs:
             row = dict(doc)
             row["id"] = row["$id"]
-            schedule_slots = row.get("schedule_slots")
+            schedule_slots = row.get("scheduled_slots")
             if isinstance(schedule_slots, str) and schedule_slots:
                 try:
                     row["schedule_slots"] = json.loads(schedule_slots)
                 except ValueError:
                     row["schedule_slots"] = []
+            elif isinstance(schedule_slots, list):
+                row["schedule_slots"] = schedule_slots
+            else:
+                row["schedule_slots"] = []
             results.append(row)
         return results
 
@@ -325,7 +329,7 @@ class AppwriteService:
                 "instructor": instructor,
                 "location": location,
                 "credits": credits,
-                "schedule_slots": json.dumps(schedule_slots),
+                "scheduled_slots": json.dumps(schedule_slots),
                 "created_at": self._to_iso(datetime.now(timezone.utc)),
             },
         )
@@ -488,6 +492,16 @@ class AppwriteService:
             return {}
         row = dict(subject)
         row["id"] = row["$id"]
+        schedule_slots = row.get("scheduled_slots")
+        if isinstance(schedule_slots, str) and schedule_slots:
+            try:
+                row["schedule_slots"] = json.loads(schedule_slots)
+            except ValueError:
+                row["schedule_slots"] = []
+        elif isinstance(schedule_slots, list):
+            row["schedule_slots"] = schedule_slots
+        else:
+            row["schedule_slots"] = []
         return row
 
     def get_assessments(self, uid: str, subject_id: str) -> Dict[str, float]:

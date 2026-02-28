@@ -3,7 +3,7 @@ python-dotenv==1.1.1
 python-dateutil==2.9.0.post0
 requests==2.32.5
 pesuacademy==1.0.0
-lxml==5.2.1
+lxml
 pytest==8.4.1
 fastapi==0.116.1
 uvicorn[standard]==0.35.0

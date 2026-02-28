@@ -31,6 +31,8 @@ flutter:
 msix_config:
   display_name: SchoolPlannr
   publisher_display_name: notacoder
-  identity_name: notacoder.schoolplannr
+  identity_name: notacoder.SchoolPlannr
   msix_version: 1.0.0.0
-  logo_path: ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-1024x1024@1x.png
+  logo_path: frontend\flutter\windows\runner\resources\app_icon.ico
+  publisher: CN=D4F3DD68-2C2F-49BC-8561-F742F3D6E84A
+  windows_build_args: --dart-define=API_URL=https://699cb5430037a8a18f1c.sgp.appwrite.run/

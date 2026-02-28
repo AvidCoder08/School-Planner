@@ -138,7 +138,9 @@ def _json_response(context: Any, payload: Any, status_code: int = 200, req: Any 
 
 def _empty_response(context: Any, status_code: int = 204, req: Any = None):
     headers = _cors_headers(req) if req is not None else {}
-    return context.res.empty(status_code, headers)
+    # Appwrite's Python response.empty() does not accept status/headers.
+    # Use a JSON response so CORS headers are preserved for preflight.
+    return context.res.json({}, status_code, headers)
 
 
 def _parse_body(req: Any) -> Dict[str, Any]:

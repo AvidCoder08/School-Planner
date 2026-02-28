@@ -1,8 +1,10 @@
 import asyncio
+import asyncio
 import json
 import os
 import re
 import sys
+import threading
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -220,7 +222,29 @@ def _to_bool(value: Any, default: bool = True) -> bool:
 
 
 def _run_async(coro):
-    return asyncio.run(coro)
+    """Run coroutine from sync code in runtimes that may already have an event loop."""
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(coro)
+
+    result: Dict[str, Any] = {}
+    error: Dict[str, BaseException] = {}
+
+    def _runner() -> None:
+        try:
+            result["value"] = asyncio.run(coro)
+        except BaseException as exc:  # pragma: no cover - passthrough
+            error["value"] = exc
+
+    thread = threading.Thread(target=_runner, daemon=True)
+    thread.start()
+    thread.join()
+
+    if "value" in error:
+        raise error["value"]
+
+    return result.get("value")
 
 
 def _auth_signup(req: Any) -> Dict[str, Any]:

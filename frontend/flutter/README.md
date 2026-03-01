@@ -28,3 +28,39 @@ flutter run -d emulator-5554 \
 ```
 
 Note: Local loopback URLs (10.0.2.2, localhost, 127.0.0.1) are blocked by default in release builds for security.
+
+## Build Windows EXE + MSIX packages
+Run this from `frontend/flutter`:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tool\package_windows.ps1
+```
+
+Optional API URL override:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tool\package_windows.ps1 -ApiUrl "http://localhost:8555"
+```
+
+Optional local test certificate password override:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tool\package_windows.ps1 -LocalCertPassword "YourStrongPassword123!"
+```
+
+This generates:
+- `build\windows\packages\SchoolPlannr.exe`
+- `build\windows\packages\*.dll` and `build\windows\packages\data\` (required runtime files for EXE)
+- `build\windows\packages\SchoolPlannr-local-test.msix` (for local PC testing)
+- `build\windows\packages\SchoolPlannr-store.msix` (Store submission workflow)
+
+Important: Do not move `SchoolPlannr.exe` by itself. Keep it in `build\windows\packages` together with the copied DLLs and `data` folder, otherwise Windows will show missing `*_plugin.dll` errors.
+
+For local testing, the script creates/reuses `tool\certs\schoolplannr-local-test.pfx`, trusts its `.cer` in your current user certificate store, and signs `SchoolPlannr-local-test.msix` with it.
+
+If Windows still blocks install with certificate trust errors (`0x800B0109` / `0x800B010A`), run this once in **elevated PowerShell**:
+
+```powershell
+Import-Certificate -FilePath .\tool\certs\schoolplannr-local-test.cer -CertStoreLocation Cert:\LocalMachine\TrustedPeople
+Import-Certificate -FilePath .\tool\certs\schoolplannr-local-test.cer -CertStoreLocation Cert:\LocalMachine\Root
+```

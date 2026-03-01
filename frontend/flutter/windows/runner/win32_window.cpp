@@ -16,6 +16,24 @@ namespace {
 #define DWMWA_USE_IMMERSIVE_DARK_MODE 20
 #endif
 
+/// Window attribute that controls system backdrop effects (Mica/Acrylic).
+///
+/// Redefined in case the developer's machine has a Windows SDK older than
+/// version 10.0.22621.0.
+#ifndef DWMWA_SYSTEMBACKDROP_TYPE
+#define DWMWA_SYSTEMBACKDROP_TYPE 38
+#endif
+
+/// Legacy Mica effect attribute used on some Windows 11 builds.
+#ifndef DWMWA_MICA_EFFECT
+#define DWMWA_MICA_EFFECT 1029
+#endif
+
+/// System backdrop type value for primary app windows (Mica).
+///
+/// Kept as a local constant to avoid SDK enum availability issues.
+constexpr DWORD kDwmSystemBackdropMainWindow = 2;
+
 constexpr const wchar_t kWindowClassName[] = L"FLUTTER_RUNNER_WIN32_WINDOW";
 
 /// Registry key for app theme preference.
@@ -285,4 +303,14 @@ void Win32Window::UpdateTheme(HWND const window) {
     DwmSetWindowAttribute(window, DWMWA_USE_IMMERSIVE_DARK_MODE,
                           &enable_dark_mode, sizeof(enable_dark_mode));
   }
+
+  // Enable Windows 11 Mica backdrop where supported.
+  const DWORD backdrop_type = kDwmSystemBackdropMainWindow;
+  DwmSetWindowAttribute(window, DWMWA_SYSTEMBACKDROP_TYPE, &backdrop_type,
+                        sizeof(backdrop_type));
+
+  // Fallback for older Windows 11 builds that use the legacy Mica attribute.
+  const BOOL mica_enabled = TRUE;
+  DwmSetWindowAttribute(window, DWMWA_MICA_EFFECT, &mica_enabled,
+                        sizeof(mica_enabled));
 }

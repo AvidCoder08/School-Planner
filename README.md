@@ -1,4 +1,4 @@
-# School-Planner (SkoolPlannr / AcademaSync)
+# School-Planner aka SkoolPlannr
 
 Monorepo for a student planner and grade tracker.
 

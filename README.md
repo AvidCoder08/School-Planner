@@ -4,7 +4,6 @@ Monorepo for a student planner and grade tracker.
 
 ## Microsoft Store
 
-```html
 <script type="module" src="https://get.microsoft.com/badge/ms-store-badge.bundled.js"></script>
 <ms-store-badge
 	productid="9N736HHQ5BSQ"
@@ -14,7 +13,6 @@ Monorepo for a student planner and grade tracker.
 	language="en-in"
 	animation="on">
 </ms-store-badge>
-```
 
 Current active stack:
 - Flutter frontend (`frontend/flutter`)

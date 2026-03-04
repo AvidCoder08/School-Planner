@@ -1,4 +1,5 @@
 # School-Planner aka SkoolPlannr
+
 <script type="module" src="https://get.microsoft.com/badge/ms-store-badge.bundled.js"></script>
 <ms-store-badge
 	productid="9N736HHQ5BSQ"
@@ -8,6 +9,7 @@
 	language="en-in"
 	animation="on">
 </ms-store-badge>
+
 Monorepo for a student planner and grade tracker.
 
 Current active stack:

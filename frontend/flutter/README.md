@@ -27,6 +27,25 @@ flutter run -d emulator-5554 \
   --dart-define=ALLOW_LOCAL_API=true
 ```
 
+## Build Android APK (PowerShell)
+Run this from `frontend/flutter`:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tool\build_android_apk.ps1
+```
+
+Override function domain / API base URL:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tool\build_android_apk.ps1 -FunctionDomain "https://your-function-domain.appwrite.run"
+```
+
+If you need local emulator backend in release build:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tool\build_android_apk.ps1 -FunctionDomain "http://10.0.2.2:8555" -AllowLocalApi
+```
+
 Note: Local loopback URLs (10.0.2.2, localhost, 127.0.0.1) are blocked by default in release builds for security.
 
 ## Build Windows EXE + MSIX packages

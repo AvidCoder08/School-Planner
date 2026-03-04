@@ -50,7 +50,7 @@ try {
   }
 
   Write-Host "[2/5] Building Windows release executable..."
-  flutter build windows --release --dart-define="API_URL=$ApiUrl"
+  flutter build windows --release --dart-define="API_BASE_URL=$ApiUrl"
 
   Write-Host "[3/5] Preparing local test certificate..."
   Ensure-LocalTestCertificate
@@ -60,7 +60,7 @@ try {
   }
 
   Write-Host "[4/5] Creating local-test MSIX package..."
-  dart run msix:create --build-windows false --output-name "SchoolPlannr-local-test" --publisher "$publisher" --certificate-path "$localPfxPath" --certificate-password "$LocalCertPassword" --install-certificate false --windows-build-args "--dart-define=API_URL=$ApiUrl"
+  dart run msix:create --build-windows false --output-name "SchoolPlannr-local-test" --publisher "$publisher" --certificate-path "$localPfxPath" --certificate-password "$LocalCertPassword" --install-certificate false --windows-build-args "--dart-define=API_BASE_URL=$ApiUrl"
   Copy-Item (Join-Path $releaseDir "SchoolPlannr-local-test.msix") (Join-Path $packagesDir "SchoolPlannr-local-test.msix") -Force
 
   if (Test-Path $imagesDir) {
@@ -68,7 +68,7 @@ try {
   }
 
   Write-Host "[5/5] Creating store MSIX package..."
-  dart run msix:create --store --build-windows false --output-name "SchoolPlannr-store" --sign-msix false --install-certificate false --windows-build-args "--dart-define=API_URL=$ApiUrl"
+  dart run msix:create --store --build-windows false --output-name "SchoolPlannr-store" --sign-msix false --install-certificate false --windows-build-args "--dart-define=API_BASE_URL=$ApiUrl"
   Copy-Item (Join-Path $releaseDir "SchoolPlannr-store.msix") (Join-Path $packagesDir "SchoolPlannr-store.msix") -Force
 
   Write-Host "[6/6] Preparing portable EXE runtime in packages folder..."

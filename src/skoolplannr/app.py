@@ -42,6 +42,10 @@ class OnboardingPayload(BaseModel):
     terms: List[TermPayload]
 
 
+class PlannerSelectionPayload(BaseModel):
+    year_id: str
+
+
 class SubjectPayload(BaseModel):
     name: str
     instructor: str = ""
@@ -135,11 +139,15 @@ def get_profile(x_user_id: Optional[str] = Header(default=None)) -> Dict:
     uid = _required_uid(x_user_id)
     fs = AppwriteService.from_settings()
     try:
+        planner_state = fs.reconcile_active_planner(uid)
         profile = fs.get_profile(uid)
         return {
             "uid": uid,
             "profile": profile,
-            "has_onboarding": fs.has_onboarding(uid),
+            "has_onboarding": planner_state["has_onboarding"],
+            "needs_planner_selection": planner_state["needs_planner_selection"],
+            "active_year_id": planner_state["active_year_id"],
+            "active_term_id": planner_state["active_term_id"],
         }
     except AppwriteServiceError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
@@ -158,6 +166,26 @@ def save_onboarding(payload: OnboardingPayload, x_user_id: Optional[str] = Heade
             terms=[term.model_dump() for term in payload.terms],
         )
         return {"status": "saved"}
+    except AppwriteServiceError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@app.get("/planners")
+def list_planners(x_user_id: Optional[str] = Header(default=None)) -> List[Dict]:
+    uid = _required_uid(x_user_id)
+    fs = AppwriteService.from_settings()
+    try:
+        return fs.list_planners(uid)
+    except AppwriteServiceError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@app.post("/planners/select")
+def select_planner(payload: PlannerSelectionPayload, x_user_id: Optional[str] = Header(default=None)) -> Dict:
+    uid = _required_uid(x_user_id)
+    fs = AppwriteService.from_settings()
+    try:
+        return fs.select_planner(uid, payload.year_id)
     except AppwriteServiceError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 

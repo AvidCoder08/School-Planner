@@ -179,6 +179,171 @@ class AppwriteService:
         )
         return year is not None
 
+    def _list_year_documents(self, uid: str) -> List[Dict]:
+        return self._list_documents(
+            self.years_collection_id,
+            [
+                Query.equal("user_id", [uid]),
+                Query.order_desc("start_date"),
+            ],
+        )
+
+    def _list_term_documents(self, uid: str, year_id: str) -> List[Dict]:
+        return self._list_documents(
+            self.terms_collection_id,
+            [
+                Query.equal("user_id", [uid]),
+                Query.equal("year_id", [year_id]),
+                Query.order_asc("start_date"),
+            ],
+        )
+
+    def _is_archived_year(self, year: Dict, now: datetime) -> bool:
+        end_date = self._from_iso(year.get("end_date"))
+        if end_date is None:
+            return False
+        return end_date < now
+
+    def _pick_term_for_year(self, uid: str, year_id: str, now: datetime) -> Optional[Dict]:
+        terms = self._list_term_documents(uid, year_id)
+        if not terms:
+            return None
+
+        for term in terms:
+            start_date = self._from_iso(term.get("start_date"))
+            end_date = self._from_iso(term.get("end_date"))
+            if start_date and end_date and start_date <= now <= end_date:
+                return term
+
+        for term in terms:
+            end_date = self._from_iso(term.get("end_date"))
+            if end_date and end_date >= now:
+                return term
+
+        return terms[-1]
+
+    def _clear_active_planner(self, uid: str) -> None:
+        profile_document_id = self._require_profile_document_id(uid)
+        self._update_document(
+            self.users_collection_id,
+            profile_document_id,
+            {
+                "active_year_id": None,
+                "active_term_id": None,
+            },
+        )
+
+    def reconcile_active_planner(self, uid: str) -> Dict:
+        now = datetime.now(timezone.utc)
+        profile = self.get_profile(uid)
+        years = self._list_year_documents(uid)
+
+        if not years:
+            if profile.get("active_year_id") or profile.get("active_term_id"):
+                self._clear_active_planner(uid)
+            return {
+                "has_onboarding": False,
+                "needs_planner_selection": False,
+                "active_year_id": None,
+                "active_term_id": None,
+            }
+
+        active_year_id = profile.get("active_year_id")
+        active_term_id = profile.get("active_term_id")
+        active_year = None
+        if active_year_id:
+            active_year = next((year for year in years if year.get("$id") == active_year_id), None)
+
+        if not active_year or self._is_archived_year(active_year, now):
+            if active_year_id or active_term_id:
+                self._clear_active_planner(uid)
+            return {
+                "has_onboarding": True,
+                "needs_planner_selection": True,
+                "active_year_id": None,
+                "active_term_id": None,
+            }
+
+        selected_term = self._pick_term_for_year(uid, active_year["$id"], now)
+        if not selected_term:
+            raise AppwriteServiceError("Selected planner has no terms configured.")
+
+        selected_term_id = selected_term["$id"]
+        if active_term_id != selected_term_id:
+            profile_document_id = self._require_profile_document_id(uid)
+            self._update_document(
+                self.users_collection_id,
+                profile_document_id,
+                {
+                    "active_year_id": active_year["$id"],
+                    "active_term_id": selected_term_id,
+                },
+            )
+
+        return {
+            "has_onboarding": True,
+            "needs_planner_selection": False,
+            "active_year_id": active_year["$id"],
+            "active_term_id": selected_term_id,
+        }
+
+    def list_planners(self, uid: str) -> List[Dict]:
+        now = datetime.now(timezone.utc)
+        profile = self.get_profile(uid)
+        active_year_id = profile.get("active_year_id")
+        years = self._list_year_documents(uid)
+
+        planners: List[Dict] = []
+        for year in years:
+            start_date = self._from_iso(year.get("start_date"))
+            end_date = self._from_iso(year.get("end_date"))
+            status = "archived" if self._is_archived_year(year, now) else "running"
+            terms = self._list_term_documents(uid, year["$id"])
+            planners.append(
+                {
+                    "id": year["$id"],
+                    "label": year.get("label", year["$id"]),
+                    "start_date": self._to_iso(start_date) if start_date else None,
+                    "end_date": self._to_iso(end_date) if end_date else None,
+                    "status": status,
+                    "is_active": year["$id"] == active_year_id,
+                    "term_count": len(terms),
+                }
+            )
+        return planners
+
+    def select_planner(self, uid: str, year_id: str) -> Dict:
+        now = datetime.now(timezone.utc)
+        year = self._find_first(
+            self.years_collection_id,
+            [
+                Query.equal("$id", [year_id]),
+                Query.equal("user_id", [uid]),
+            ],
+        )
+        if not year:
+            raise AppwriteServiceError("Planner not found.")
+        if self._is_archived_year(year, now):
+            raise AppwriteServiceError("Selected planner is archived. Create a new planner.")
+
+        term = self._pick_term_for_year(uid, year_id, now)
+        if not term:
+            raise AppwriteServiceError("Selected planner has no terms configured.")
+
+        profile_document_id = self._require_profile_document_id(uid)
+        self._update_document(
+            self.users_collection_id,
+            profile_document_id,
+            {
+                "active_year_id": year_id,
+                "active_term_id": term["$id"],
+            },
+        )
+        return {
+            "active_year_id": year_id,
+            "active_term_id": term["$id"],
+        }
+
     def save_onboarding(
         self,
         uid: str,
@@ -230,11 +395,13 @@ class AppwriteService:
         )
 
     def _active_term(self, uid: str) -> Dict:
-        profile = self.get_profile(uid)
-        year_id = profile.get("active_year_id")
-        term_id = profile.get("active_term_id")
+        state = self.reconcile_active_planner(uid)
+        year_id = state.get("active_year_id")
+        term_id = state.get("active_term_id")
         if not year_id or not term_id:
-            raise AppwriteServiceError("Active academic year/term not set. Complete onboarding first.")
+            raise AppwriteServiceError(
+                "No active planner selected. Choose a running planner or create a new one."
+            )
 
         term = self._find_first(
             self.terms_collection_id,

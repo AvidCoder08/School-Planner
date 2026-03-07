@@ -14,7 +14,7 @@
         android:text="Upcoming Classes"
         android:textStyle="bold"
         android:textSize="14sp"
-        android:textColor="#FF111827" />
+        android:textColor="@color/widget_title_text" />
 
     <TextView
         android:id="@+id/widget_classes_text"
@@ -25,6 +25,6 @@
         android:ellipsize="end"
         android:text="No upcoming classes"
         android:textSize="12sp"
-        android:textColor="#FF1F2937" />
+        android:textColor="@color/widget_body_text" />
 
 </LinearLayout>

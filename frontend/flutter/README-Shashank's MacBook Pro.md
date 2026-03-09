@@ -48,58 +48,6 @@ powershell -ExecutionPolicy Bypass -File .\tool\build_android_apk.ps1 -FunctionD
 
 Note: Local loopback URLs (10.0.2.2, localhost, 127.0.0.1) are blocked by default in release builds for security.
 
-## Build/Deploy Web (PowerShell)
-Run this from `frontend/flutter`:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\tool\deploy_web.ps1
-```
-
-By default, this script builds the web app and deploys it to your **linked Vercel app** (production) using `vercel deploy --prod`.
-Before first use, link this folder once:
-
-```powershell
-vercel link
-```
-
-Optional API URL override:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\tool\deploy_web.ps1 -ApiUrl "https://your-function-domain.appwrite.run"
-```
-
-Optional base href (for sub-path hosting such as `/schoolplannr/`):
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\tool\deploy_web.ps1 -BaseHref "/schoolplannr/"
-```
-
-Optional deploy target directory (copies `build\web\*` there after build):
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\tool\deploy_web.ps1 -DeployDir "C:\inetpub\wwwroot\schoolplannr"
-```
-
-Optional Vercel controls:
-
-```powershell
-# Build artifacts only (skip Vercel deploy)
-powershell -ExecutionPolicy Bypass -File .\tool\deploy_web.ps1 -DeployToVercel:$false
-
-# Preview deployment instead of production
-powershell -ExecutionPolicy Bypass -File .\tool\deploy_web.ps1 -VercelProd:$false
-
-# CI usage with token/scope
-powershell -ExecutionPolicy Bypass -File .\tool\deploy_web.ps1 -VercelToken "<token>" -VercelScope "<team-or-user>"
-```
-
-This generates:
-- `build\web\` (Flutter web output)
-- `build\web_artifacts\site\` (staged deploy folder)
-- `build\web_artifacts\schoolplannr-web-<timestamp>.zip` (uploadable artifact)
-
-The script also writes a `vercel.json` in the staged output to ensure Flutter SPA deep links route to `index.html` on Vercel.
-
 ## Build Windows EXE + MSIX packages
 Run this from `frontend/flutter`:
 

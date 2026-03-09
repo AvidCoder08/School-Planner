@@ -48,6 +48,31 @@ powershell -ExecutionPolicy Bypass -File .\tool\build_android_apk.ps1 -FunctionD
 
 Note: Local loopback URLs (10.0.2.2, localhost, 127.0.0.1) are blocked by default in release builds for security.
 
+## F-Droid / Open-source Android release
+
+This project is configured so Android release builds do not require a private
+keystore in CI/F-Droid builds.
+
+Build unsigned release APK locally:
+
+```bash
+flutter build apk --release
+```
+
+Build unsigned release App Bundle locally:
+
+```bash
+flutter build appbundle --release
+```
+
+Local manual signing (optional):
+- Copy `android/key.properties.example` to `android/key.properties`.
+- Fill in your local keystore values.
+- Keep `android/key.properties` untracked.
+
+F-Droid metadata for store listing text is available at:
+- `fastlane/metadata/android/en-US/`
+
 ## Build/Deploy Web (PowerShell)
 Run this from `frontend/flutter`:
 

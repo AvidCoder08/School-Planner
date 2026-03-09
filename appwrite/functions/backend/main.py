@@ -194,6 +194,17 @@ def _require_user_id(req: Any) -> str:
     return value
 
 
+def _require_session_secret(req: Any) -> str:
+    auth_header = _headers(req).get("authorization", "").strip()
+    if not auth_header.lower().startswith("bearer "):
+        raise HttpError(401, "Missing Authorization bearer token")
+
+    token = auth_header.split(" ", 1)[1].strip()
+    if not token:
+        raise HttpError(401, "Missing Authorization bearer token")
+    return token
+
+
 def _parse_datetime(value: Any, field_name: str) -> datetime:
     if not isinstance(value, str) or not value.strip():
         raise HttpError(400, f"{field_name} must be an ISO-8601 datetime string")
@@ -266,6 +277,7 @@ def _auth_signup(req: Any) -> Dict[str, Any]:
             "email": result.email,
             "id_token": result.id_token,
             "refresh_token": result.refresh_token,
+            "email_verified": result.email_verified,
         }
     except AuthServiceError as exc:
         raise HttpError(400, str(exc)) from exc
@@ -288,6 +300,7 @@ def _auth_login(req: Any) -> Dict[str, Any]:
             "email": result.email,
             "id_token": result.id_token,
             "refresh_token": result.refresh_token,
+            "email_verified": result.email_verified,
         }
     except AuthServiceError as exc:
         raise HttpError(401, str(exc)) from exc
@@ -304,6 +317,48 @@ def _get_profile(req: Any) -> Dict[str, Any]:
             "has_onboarding": fs.has_onboarding(uid),
         }
     except AppwriteServiceError as exc:
+        raise HttpError(400, str(exc)) from exc
+
+
+def _send_email_verification(req: Any) -> Dict[str, Any]:
+    session_secret = _require_session_secret(req)
+    payload = _parse_body(req)
+    url = str(payload.get("url", "")).strip()
+    if not url:
+        raise HttpError(400, "url is required")
+
+    try:
+        auth = AppwriteAuthService.from_settings()
+        auth.send_email_verification(session_secret, url)
+        return {"status": "sent"}
+    except AuthServiceError as exc:
+        raise HttpError(400, str(exc)) from exc
+
+
+def _complete_email_verification(req: Any) -> Dict[str, Any]:
+    session_secret = _require_session_secret(req)
+    payload = _parse_body(req)
+    user_id = str(payload.get("user_id", "")).strip()
+    secret = str(payload.get("secret", "")).strip()
+    if not user_id or not secret:
+        raise HttpError(400, "user_id and secret are required")
+
+    try:
+        auth = AppwriteAuthService.from_settings()
+        auth.complete_email_verification(session_secret, user_id, secret)
+        account = auth.get_account(session_secret)
+        return {"email_verified": account.get("emailVerification") is True}
+    except AuthServiceError as exc:
+        raise HttpError(400, str(exc)) from exc
+
+
+def _email_verification_status(req: Any) -> Dict[str, Any]:
+    session_secret = _require_session_secret(req)
+    try:
+        auth = AppwriteAuthService.from_settings()
+        account = auth.get_account(session_secret)
+        return {"email_verified": account.get("emailVerification") is True}
+    except AuthServiceError as exc:
         raise HttpError(400, str(exc)) from exc
 
 
@@ -593,6 +648,15 @@ def _route(context: Any, req: Any):
 
     if method == "POST" and path == "/auth/login":
         return _json_response(context, _auth_login(req), req=req)
+
+    if method == "POST" and path == "/auth/verification/email/send":
+        return _json_response(context, _send_email_verification(req), req=req)
+
+    if method == "POST" and path == "/auth/verification/email/complete":
+        return _json_response(context, _complete_email_verification(req), req=req)
+
+    if method == "GET" and path == "/auth/verification/email/status":
+        return _json_response(context, _email_verification_status(req), req=req)
 
     if method == "GET" and path == "/profile":
         return _json_response(context, _get_profile(req), req=req)

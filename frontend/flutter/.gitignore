@@ -45,3 +45,5 @@ app.*.map.json
 /android/app/release
 .vercel
 .env*.local
+/android/key.properties
+*-Shashank's MacBook Pro*

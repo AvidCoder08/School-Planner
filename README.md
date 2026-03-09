@@ -2,6 +2,10 @@
 
 Monorepo for a student planner and grade tracker.
 
+## License
+
+This repository is open source under the MIT License. See `LICENSE`.
+
 ## Microsoft Store
 
 <a href="https://apps.microsoft.com/detail/9N736HHQ5BSQ?referrer=appbadge&mode=full" target="_blank"  rel="noopener noreferrer">
@@ -75,6 +79,12 @@ Android emulator local backend:
 ```bash
 flutter run -d emulator-5554 --dart-define=API_BASE_URL=http://10.0.2.2:8555 --dart-define=ALLOW_LOCAL_API=true
 ```
+
+## F-Droid release readiness
+
+- Android release signing is optional when `frontend/flutter/android/key.properties` is absent.
+- `frontend/flutter/android/key.properties.example` provides a local signing template.
+- F-Droid/Play listing metadata is provided in `frontend/flutter/fastlane/metadata/android/en-US/`.
 
 ## Appwrite Function backend
 

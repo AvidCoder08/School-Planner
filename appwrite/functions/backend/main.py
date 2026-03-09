@@ -297,15 +297,11 @@ def _get_profile(req: Any) -> Dict[str, Any]:
     uid = _require_user_id(req)
     fs = AppwriteService.from_settings()
     try:
-        planner_state = fs.reconcile_active_planner(uid)
         profile = fs.get_profile(uid)
         return {
             "uid": uid,
             "profile": profile,
-            "has_onboarding": planner_state["has_onboarding"],
-            "needs_planner_selection": planner_state["needs_planner_selection"],
-            "active_year_id": planner_state["active_year_id"],
-            "active_term_id": planner_state["active_term_id"],
+            "has_onboarding": fs.has_onboarding(uid),
         }
     except AppwriteServiceError as exc:
         raise HttpError(400, str(exc)) from exc
@@ -348,30 +344,6 @@ def _save_onboarding(req: Any) -> Dict[str, Any]:
             terms=terms,
         )
         return {"status": "saved"}
-    except AppwriteServiceError as exc:
-        raise HttpError(400, str(exc)) from exc
-
-
-def _list_planners(req: Any) -> Any:
-    uid = _require_user_id(req)
-    fs = AppwriteService.from_settings()
-    try:
-        return fs.list_planners(uid)
-    except AppwriteServiceError as exc:
-        raise HttpError(400, str(exc)) from exc
-
-
-def _select_planner(req: Any) -> Dict[str, Any]:
-    uid = _require_user_id(req)
-    payload = _parse_body(req)
-
-    year_id = str(payload.get("year_id", "")).strip()
-    if not year_id:
-        raise HttpError(400, "year_id is required")
-
-    fs = AppwriteService.from_settings()
-    try:
-        return fs.select_planner(uid, year_id)
     except AppwriteServiceError as exc:
         raise HttpError(400, str(exc)) from exc
 
@@ -627,12 +599,6 @@ def _route(context: Any, req: Any):
 
     if method == "POST" and path == "/onboarding":
         return _json_response(context, _save_onboarding(req), req=req)
-
-    if method == "GET" and path == "/planners":
-        return _json_response(context, _list_planners(req), req=req)
-
-    if method == "POST" and path == "/planners/select":
-        return _json_response(context, _select_planner(req), req=req)
 
     if method == "GET" and path == "/subjects":
         return _json_response(context, _list_subjects(req), req=req)

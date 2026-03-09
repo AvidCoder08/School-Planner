@@ -143,7 +143,22 @@ class AcademaSyncApp:
     def dashboard_view(self) -> ft.Control:
         assert self.current_user_id is not None
         now = datetime.now()
+        today_name = now.strftime("%a")
         subjects = self.store.list_subjects(self.current_user_id)
+        today_subjects = [s for s in subjects if s["day_of_week"] == today_name]
+
+        if not today_subjects:
+            future = subjects
+            current_idx = DAYS.index(today_name) if today_name in DAYS else 0
+            next_subjects = []
+            for offset in range(1, 8):
+                day = DAYS[(current_idx + offset) % 7]
+                matches = [s for s in future if s["day_of_week"] == day]
+                if matches:
+                    next_subjects = matches
+                    today_name = day
+                    break
+            today_subjects = next_subjects
 
         tasks = self.store.list_tasks(self.current_user_id)
         today = now.date()
@@ -157,6 +172,9 @@ class AcademaSyncApp:
             if due in (today, tomorrow):
                 due_soon.append(t)
 
+        timetable_lines = [
+            ft.Text(f"• {s['start_time']}-{s['end_time']} {s['name']} @ {s['location']}") for s in today_subjects
+        ] or [ft.Text("No scheduled classes")]
         due_lines = [
             ft.Text(f"• {t['title']} ({t['task_type']}) due {t['due_at']}") for t in due_soon
         ] or [ft.Text("No urgent tasks")]
@@ -164,59 +182,13 @@ class AcademaSyncApp:
         return ft.Column(
             [
                 ft.Text(now.strftime("%A, %d %B %Y • %H:%M"), size=18),
-                ft.Text("Timetable", size=20, weight=ft.FontWeight.BOLD),
-                self._build_timetable_table(subjects),
+                ft.Text(f"Timetable ({today_name})", size=20, weight=ft.FontWeight.BOLD),
+                *timetable_lines,
                 ft.Divider(),
                 ft.Text("Due Today / Tomorrow", size=20, weight=ft.FontWeight.BOLD),
                 *due_lines,
             ]
         )
-
-    def _build_timetable_table(self, subjects: list[dict]) -> ft.Control:
-        day_cells: dict[str, dict[str, list[str]]] = {day: {} for day in DAYS}
-        slot_set: set[str] = set()
-
-        for subject in subjects:
-            day = subject.get("day_of_week", "")
-            start_time = subject.get("start_time", "")
-            end_time = subject.get("end_time", "")
-            if day not in day_cells or not start_time or not end_time:
-                continue
-
-            slot = f"{start_time}-{end_time}"
-            slot_set.add(slot)
-
-            location = (subject.get("location") or "").strip()
-            label = subject.get("name", "")
-            if location:
-                label = f"{label} @ {location}"
-            day_cells[day].setdefault(slot, []).append(label)
-
-        if not slot_set:
-            return ft.Text("No scheduled classes")
-
-        def _slot_sort_key(slot: str) -> tuple[int, int]:
-            start_token = slot.split("-")[0].strip()
-            parts = start_token.split(":")
-            if len(parts) != 2:
-                return (0, 0)
-            try:
-                return (int(parts[0]), int(parts[1]))
-            except ValueError:
-                return (0, 0)
-
-        time_slots = sorted(slot_set, key=_slot_sort_key)
-
-        columns = [ft.DataColumn(ft.Text("Day"))] + [ft.DataColumn(ft.Text(slot)) for slot in time_slots]
-        rows = []
-        for day in DAYS:
-            row_cells = [ft.DataCell(ft.Text(day, weight=ft.FontWeight.BOLD))]
-            for slot in time_slots:
-                entries = day_cells[day].get(slot, [])
-                row_cells.append(ft.DataCell(ft.Text("\n".join(entries) if entries else "-")))
-            rows.append(ft.DataRow(cells=row_cells))
-
-        return ft.Row([ft.DataTable(columns=columns, rows=rows)], scroll=ft.ScrollMode.AUTO)
 
     def subjects_view(self, refresh_all) -> ft.Control:
         assert self.current_user_id is not None

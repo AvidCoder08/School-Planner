@@ -59,7 +59,22 @@ Notes:
 
 ## Required function scopes
 
-Grant the function enough scopes to read/write Appwrite Databases and use account/session APIs as used by this backend.
+Grant the function dynamic API key enough scopes to read/write Appwrite Databases and use account/session APIs.
+
+At minimum, include:
+
+- `account` (required for `/account/sessions/email`, `/account`, and verification routes)
+- `databases.read`
+- `databases.write`
+
+If your Appwrite project separates collection/document scopes, also include:
+
+- `collections.read`
+- `collections.write`
+- `documents.read`
+- `documents.write`
+
+If you prefer static keys, set `APPWRITE_API_KEY` with the same scopes.
 
 ## Flutter wiring
 

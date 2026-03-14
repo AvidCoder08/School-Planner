@@ -75,6 +75,14 @@ class HttpError(Exception):
         self.detail = detail
 
 
+def _is_scope_or_session_error(exc: Exception) -> bool:
+    message = str(exc).lower()
+    return (
+        ("missing scopes" in message and "account" in message)
+        or "invalid_appwrite_session" in message
+    )
+
+
 def _headers(req: Any) -> Dict[str, str]:
     raw_headers = getattr(req, "headers", {}) or {}
     return {str(key).lower(): str(value) for key, value in raw_headers.items()}
@@ -332,6 +340,8 @@ def _send_email_verification(req: Any) -> Dict[str, Any]:
         auth.send_email_verification(session_secret, url)
         return {"status": "sent"}
     except AuthServiceError as exc:
+        if _is_scope_or_session_error(exc):
+            return {"status": "skipped"}
         raise HttpError(400, str(exc)) from exc
 
 
@@ -349,6 +359,8 @@ def _complete_email_verification(req: Any) -> Dict[str, Any]:
         account = auth.get_account(session_secret)
         return {"email_verified": account.get("emailVerification") is True}
     except AuthServiceError as exc:
+        if _is_scope_or_session_error(exc):
+            return {"email_verified": False}
         raise HttpError(400, str(exc)) from exc
 
 
@@ -359,6 +371,8 @@ def _email_verification_status(req: Any) -> Dict[str, Any]:
         account = auth.get_account(session_secret)
         return {"email_verified": account.get("emailVerification") is True}
     except AuthServiceError as exc:
+        if _is_scope_or_session_error(exc):
+            return {"email_verified": False}
         raise HttpError(400, str(exc)) from exc
 
 

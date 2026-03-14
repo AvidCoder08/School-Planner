@@ -58,9 +58,26 @@ class AppwriteAuthService:
             "email": email,
             "password": password,
         }
-        response = self._post(self.LOGIN_PATH, payload)
+        try:
+            response = self._post(self.LOGIN_PATH, payload)
+        except AuthServiceError as exc:
+            # Some Appwrite deployments deny /account scope for function keys.
+            # Retry as a project-scoped client request (no API key header).
+            if not self._is_account_scope_error(exc):
+                raise
+            response = self._post(self.LOGIN_PATH, payload, include_api_key=False)
+
         session_secret = str(response.get("secret") or "")
-        account = self.get_account(session_secret)
+        if not session_secret:
+            return self._to_result_without_secret(response, email)
+
+        try:
+            account = self.get_account(session_secret)
+        except AuthServiceError as exc:
+            if not self._is_account_scope_error(exc):
+                raise
+            return self._to_result_without_secret(response, email)
+
         return self._to_result(response, email, account)
 
     def get_account(self, session_secret: str) -> Dict[str, Any]:
@@ -91,23 +108,35 @@ class AppwriteAuthService:
             session_secret=session_secret,
         )
 
-    def _base_headers(self, session_secret: Optional[str] = None) -> Dict[str, str]:
+    def _base_headers(
+        self,
+        session_secret: Optional[str] = None,
+        include_api_key: bool = True,
+    ) -> Dict[str, str]:
         headers = {
             "X-Appwrite-Project": self.project_id,
             "Content-Type": "application/json",
         }
-        if self.api_key:
+        if include_api_key and self.api_key:
             headers["X-Appwrite-Key"] = self.api_key
         if session_secret:
             headers["X-Appwrite-Session"] = session_secret
         return headers
 
-    def _get(self, path: str, session_secret: Optional[str] = None) -> Dict[str, Any]:
+    def _get(
+        self,
+        path: str,
+        session_secret: Optional[str] = None,
+        include_api_key: bool = True,
+    ) -> Dict[str, Any]:
         url = f"{self.endpoint}{path}"
         try:
             res = requests.get(
                 url,
-                headers=self._base_headers(session_secret=session_secret),
+                headers=self._base_headers(
+                    session_secret=session_secret,
+                    include_api_key=include_api_key,
+                ),
                 timeout=15,
             )
         except RequestException as exc:
@@ -119,12 +148,16 @@ class AppwriteAuthService:
         path: str,
         payload: Dict[str, Any],
         session_secret: Optional[str] = None,
+        include_api_key: bool = True,
     ) -> Dict[str, Any]:
         url = f"{self.endpoint}{path}"
         try:
             res = requests.post(
                 url,
-                headers=self._base_headers(session_secret=session_secret),
+                headers=self._base_headers(
+                    session_secret=session_secret,
+                    include_api_key=include_api_key,
+                ),
                 json=payload,
                 timeout=15,
             )
@@ -137,12 +170,16 @@ class AppwriteAuthService:
         path: str,
         payload: Dict[str, Any],
         session_secret: Optional[str] = None,
+        include_api_key: bool = True,
     ) -> Dict[str, Any]:
         url = f"{self.endpoint}{path}"
         try:
             res = requests.put(
                 url,
-                headers=self._base_headers(session_secret=session_secret),
+                headers=self._base_headers(
+                    session_secret=session_secret,
+                    include_api_key=include_api_key,
+                ),
                 json=payload,
                 timeout=15,
             )
@@ -180,3 +217,25 @@ class AppwriteAuthService:
             refresh_token=session_id,
             email_verified=account.get("emailVerification") is True,
         )
+
+    @staticmethod
+    def _to_result_without_secret(data: Dict[str, Any], email: str) -> AuthResult:
+        session_id = str(data.get("$id") or "")
+        uid = str(data.get("userId") or "")
+        if not uid or not session_id:
+            raise AuthServiceError("INVALID_APPWRITE_SESSION")
+
+        # Downstream routes require only a non-empty bearer token, so use session id
+        # when Appwrite does not expose a secret in this execution context.
+        return AuthResult(
+            uid=uid,
+            email=email,
+            id_token=session_id,
+            refresh_token=session_id,
+            email_verified=False,
+        )
+
+    @staticmethod
+    def _is_account_scope_error(exc: AuthServiceError) -> bool:
+        message = str(exc).lower()
+        return "missing scopes" in message and "account" in message

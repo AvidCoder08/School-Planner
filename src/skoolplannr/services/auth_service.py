@@ -25,17 +25,22 @@ class AppwriteAuthService:
     ACCOUNT_PATH = "/account"
     EMAIL_VERIFICATION_PATH = "/account/verification"
 
-    def __init__(self, endpoint: str, project_id: str) -> None:
+    def __init__(self, endpoint: str, project_id: str, api_key: str = "") -> None:
         if not endpoint:
             raise AuthServiceError("Missing APPWRITE_ENDPOINT in environment")
         if not project_id:
             raise AuthServiceError("Missing APPWRITE_PROJECT_ID in environment")
         self.endpoint = endpoint.rstrip("/")
         self.project_id = project_id
+        self.api_key = api_key.strip()
 
     @classmethod
     def from_settings(cls) -> "AppwriteAuthService":
-        return cls(settings.appwrite_endpoint, settings.appwrite_project_id)
+        return cls(
+            settings.appwrite_endpoint,
+            settings.appwrite_project_id,
+            settings.appwrite_api_key,
+        )
 
     def sign_up(self, email: str, password: str, name: Optional[str] = None) -> AuthResult:
         payload = {
@@ -91,6 +96,8 @@ class AppwriteAuthService:
             "X-Appwrite-Project": self.project_id,
             "Content-Type": "application/json",
         }
+        if self.api_key:
+            headers["X-Appwrite-Key"] = self.api_key
         if session_secret:
             headers["X-Appwrite-Session"] = session_secret
         return headers
@@ -162,7 +169,10 @@ class AppwriteAuthService:
         session_secret = str(data.get("secret") or "")
         uid = str(data.get("userId") or "")
         if not uid or not session_secret:
-            raise AuthServiceError("INVALID_APPWRITE_SESSION")
+            raise AuthServiceError(
+                "INVALID_APPWRITE_SESSION: Missing session secret. "
+                "Ensure APPWRITE_FUNCTION_API_KEY (or APPWRITE_API_KEY) is configured."
+            )
         return AuthResult(
             uid=uid,
             email=str(account.get("email") or email),

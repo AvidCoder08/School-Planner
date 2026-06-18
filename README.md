@@ -134,3 +134,6 @@ python -m unittest discover -s tests -v
 - Root files currently indicate an unresolved merge in some places (`requirements.txt`, `.env.example`) in this branch state. Resolve those before production packaging.
 - `frontend/flutter/README.md` has client-specific run/deploy details.
 - `appwrite/functions/backend/README.md` has function deployment specifics.
+
+
+> Note: SchoolPlannr won't be coming to iOS, iPadOS or macOS as native apps anytime soon. Apple requires developers to own a Mac to create apps for their platforms. Unfortunately not everyone can afford a Mac. Due to this SchoolPlannr will be available as a web app only for Apple Devices. If you would like to see apps for Apple Devices, pls complain to Apple.

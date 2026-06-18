@@ -11,7 +11,7 @@
 - Centralize schedule, tasks, and grades.
 - Provide timely reminders and clear daily/weekly views.
 - Automate SGPA/CGPA and per-subject grade calculations.
-- Deliver a consistent experience on Windows, Web, and Android.
+- Deliver a consistent experience on Web and Android.
 
 ---
 
@@ -89,7 +89,7 @@ CGPA = Σ(all_course_credits × all_course_grade_points) / Σ(all_course_credits
 - **Frontend/UI**: Flet (Python)
 - **Backend/Auth/DB**: Firebase Authentication + Firestore
 - **Language**: Python
-- **Platforms**: Windows, Web, Android
+- **Platforms**: Web, Android
 
 ---
 
@@ -360,7 +360,7 @@ def calc_cgpa(semester_course_sets: Iterable[Iterable[CourseResult]]) -> float:
 8. **Sync, Notifications, Hardening**
    - Push/local reminders, offline caching strategy, rule tightening, QA pass.
 9. **Packaging/Release**
-   - Web deployment + Windows packaging + Android distribution pipeline.
+   - Web deployment + Android distribution pipeline.
 
 ---
 

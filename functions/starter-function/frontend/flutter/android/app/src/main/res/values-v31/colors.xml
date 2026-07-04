@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="widget_card_bg">@android:color/system_accent1_0</color>
+    <color name="widget_card_border">@android:color/system_accent1_300</color>
+    <color name="widget_title_text">@android:color/system_neutral1_900</color>
+    <color name="widget_body_text">@android:color/system_neutral1_800</color>
+</resources>

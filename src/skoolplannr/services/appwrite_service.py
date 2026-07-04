@@ -1,3 +1,4 @@
+import hashlib
 from datetime import datetime, timezone
 import json
 from typing import Dict, List, Optional, Tuple
@@ -32,6 +33,8 @@ class AppwriteService:
         events_collection_id: str,
         grades_collection_id: str,
         assessments_collection_id: str,
+        notification_preferences_collection_id: str,
+        notification_subscriptions_collection_id: str,
     ) -> None:
         if not endpoint:
             raise AppwriteServiceError("Missing APPWRITE_ENDPOINT in environment")
@@ -51,6 +54,8 @@ class AppwriteService:
         self.events_collection_id = events_collection_id
         self.grades_collection_id = grades_collection_id
         self.assessments_collection_id = assessments_collection_id
+        self.notification_preferences_collection_id = notification_preferences_collection_id
+        self.notification_subscriptions_collection_id = notification_subscriptions_collection_id
 
         client = Client()
         client.set_endpoint(endpoint.rstrip("/"))
@@ -74,6 +79,8 @@ class AppwriteService:
             events_collection_id=settings.appwrite_events_collection_id,
             grades_collection_id=settings.appwrite_grades_collection_id,
             assessments_collection_id=settings.appwrite_assessments_collection_id,
+            notification_preferences_collection_id=settings.appwrite_notification_preferences_collection_id,
+            notification_subscriptions_collection_id=settings.appwrite_notification_subscriptions_collection_id,
         )
 
     @staticmethod
@@ -108,6 +115,160 @@ class AppwriteService:
             )
         except AppwriteException as exc:
             raise AppwriteServiceError(str(exc)) from exc
+
+    @staticmethod
+    def _stable_document_id(prefix: str, value: str) -> str:
+        digest = hashlib.sha256(value.encode("utf-8")).hexdigest()[:32]
+        normalized_prefix = "".join(ch for ch in prefix.lower() if ch.isalnum())[:8]
+        return f"{normalized_prefix}{digest}"[:36]
+
+    @staticmethod
+    def _normalize_notification_preferences(preferences: Dict) -> Dict:
+        def _parse_int(value, fallback: int, minimum: int, maximum: int) -> int:
+            try:
+                parsed = int(value)
+            except (TypeError, ValueError):
+                parsed = fallback
+            return max(minimum, min(maximum, parsed))
+
+        return {
+            "enabled": bool(preferences.get("enabled", True)),
+            "class_enabled": bool(preferences.get("class_enabled", True)),
+            "assignment_enabled": bool(preferences.get("assignment_enabled", True)),
+            "event_enabled": bool(preferences.get("event_enabled", True)),
+            "holiday_enabled": bool(preferences.get("holiday_enabled", True)),
+            "class_lead_minutes": _parse_int(preferences.get("class_lead_minutes"), 10, 1, 120),
+            "assignment_lead_minutes": _parse_int(preferences.get("assignment_lead_minutes"), 120, 5, 10080),
+            "event_lead_minutes": _parse_int(preferences.get("event_lead_minutes"), 120, 5, 10080),
+            "holiday_lead_minutes": _parse_int(preferences.get("holiday_lead_minutes"), 1440, 30, 20160),
+        }
+
+    @staticmethod
+    def _notification_preferences_from_document(document: Dict, uid: str) -> Dict:
+        return {
+            "user_id": uid,
+            "enabled": bool(document.get("enabled", True)),
+            "class_enabled": bool(document.get("class_enabled", True)),
+            "assignment_enabled": bool(document.get("assignment_enabled", True)),
+            "event_enabled": bool(document.get("event_enabled", True)),
+            "holiday_enabled": bool(document.get("holiday_enabled", True)),
+            "class_lead_minutes": int(document.get("class_lead_minutes", 10)),
+            "assignment_lead_minutes": int(document.get("assignment_lead_minutes", 120)),
+            "event_lead_minutes": int(document.get("event_lead_minutes", 120)),
+            "holiday_lead_minutes": int(document.get("holiday_lead_minutes", 1440)),
+        }
+
+    def get_notification_preferences(self, uid: str) -> Dict:
+        document = self._find_first(
+            self.notification_preferences_collection_id,
+            [
+                Query.equal("user_id", [uid]),
+            ],
+        )
+        if not document:
+            return {"user_id": uid, **self._normalize_notification_preferences({})}
+        return self._notification_preferences_from_document(document, uid)
+
+    def save_notification_preferences(self, uid: str, preferences: Dict) -> Dict:
+        normalized = self._normalize_notification_preferences(preferences)
+        document_id = self._stable_document_id("notif_prefs", uid)
+        existing = self._find_first(
+            self.notification_preferences_collection_id,
+            [
+                Query.equal("user_id", [uid]),
+            ],
+        )
+
+        payload = {
+            "user_id": uid,
+            **normalized,
+            "updated_at": self._to_iso(datetime.now(timezone.utc)),
+        }
+
+        if existing:
+            updated = self._update_document(
+                self.notification_preferences_collection_id,
+                str(existing["$id"]),
+                payload,
+            )
+            return self._notification_preferences_from_document(updated, uid)
+
+        created = self._create_document(
+            self.notification_preferences_collection_id,
+            {
+                **payload,
+                "created_at": self._to_iso(datetime.now(timezone.utc)),
+            },
+            document_id=document_id,
+        )
+        return self._notification_preferences_from_document(created, uid)
+
+    def upsert_notification_subscription(self, uid: str, subscription: Dict) -> Dict:
+        platform = str(subscription.get("platform", "")).strip().lower()
+        if not platform:
+            raise AppwriteServiceError("platform is required")
+
+        target = str(subscription.get("target", "")).strip()
+        if not target:
+            raise AppwriteServiceError("target is required")
+
+        document_id = self._stable_document_id("notif_sub", f"{uid}:{platform}:{target}")
+        existing = self._find_first(
+            self.notification_subscriptions_collection_id,
+            [
+                Query.equal("user_id", [uid]),
+                Query.equal("platform", [platform]),
+                Query.equal("target", [target]),
+            ],
+        )
+
+        payload = {
+            "user_id": uid,
+            "platform": platform,
+            "target": target,
+            "subscription": subscription.get("subscription"),
+            "enabled": bool(subscription.get("enabled", True)),
+            "updated_at": self._to_iso(datetime.now(timezone.utc)),
+        }
+
+        if existing:
+            updated = self._update_document(
+                self.notification_subscriptions_collection_id,
+                str(existing["$id"]),
+                payload,
+            )
+            return updated
+
+        created = self._create_document(
+            self.notification_subscriptions_collection_id,
+            {
+                **payload,
+                "created_at": self._to_iso(datetime.now(timezone.utc)),
+            },
+            document_id=document_id,
+        )
+        return created
+
+    def list_notification_subscriptions(self, uid: str) -> List[Dict]:
+        return self._list_documents(
+            self.notification_subscriptions_collection_id,
+            [
+                Query.equal("user_id", [uid]),
+                Query.order_desc("updated_at"),
+            ],
+        )
+
+    def delete_notification_subscription(self, uid: str, subscription_id: str) -> None:
+        document = self._find_first(
+            self.notification_subscriptions_collection_id,
+            [
+                Query.equal("$id", [subscription_id]),
+                Query.equal("user_id", [uid]),
+            ],
+        )
+        if not document:
+            raise AppwriteServiceError("Notification subscription not found.")
+        self._delete_document(self.notification_subscriptions_collection_id, str(document["$id"]))
 
     def _get_document(self, collection_id: str, document_id: str) -> Dict:
         try:
@@ -779,6 +940,13 @@ class AppwriteService:
         else:
             self._create_document(self.grades_collection_id, grade_doc)
 
+        sgpa, total_credits = self.calculate_and_store_sgpa(uid)
+        cgpa, _ = self.calculate_and_store_cgpa(uid)
+
+        grade_doc["sgpa"] = sgpa
+        grade_doc["cgpa"] = cgpa
+        grade_doc["total_credits"] = total_credits
+
         return grade_doc
 
     def list_grades(self, uid: str) -> List[Dict]:
@@ -796,6 +964,32 @@ class AppwriteService:
             results.append(row)
         results.sort(key=lambda row: row.get("subject_name", ""))
         return results
+
+    def get_grades_overview(self, uid: str) -> Dict:
+        grades = self.list_grades(uid)
+        summary = {
+            "sgpa": None,
+            "cgpa": self.get_cached_cgpa(uid),
+            "total_credits": 0,
+            "active_term_name": None,
+        }
+
+        try:
+            term = self.get_active_term_summary(uid)
+        except AppwriteServiceError:
+            term = {}
+
+        if term:
+            sgpa = term.get("sgpa")
+            total_credits = term.get("total_credits")
+            summary["sgpa"] = float(sgpa) if sgpa is not None else None
+            summary["total_credits"] = int(total_credits) if total_credits is not None else 0
+            summary["active_term_name"] = term.get("name")
+
+        return {
+            "grades": grades,
+            "summary": summary,
+        }
 
     def calculate_and_store_sgpa(self, uid: str) -> Tuple[float, int]:
         grades = self.list_grades(uid)

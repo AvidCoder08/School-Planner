@@ -25,6 +25,14 @@ class Settings:
     appwrite_events_collection_id: str = os.getenv("APPWRITE_EVENTS_COLLECTION_ID", "events")
     appwrite_grades_collection_id: str = os.getenv("APPWRITE_GRADES_COLLECTION_ID", "grades")
     appwrite_assessments_collection_id: str = os.getenv("APPWRITE_ASSESSMENTS_COLLECTION_ID", "assessments")
+    appwrite_notification_preferences_collection_id: str = os.getenv(
+        "APPWRITE_NOTIFICATION_PREFERENCES_COLLECTION_ID",
+        "notification_preferences",
+    )
+    appwrite_notification_subscriptions_collection_id: str = os.getenv(
+        "APPWRITE_NOTIFICATION_SUBSCRIPTIONS_COLLECTION_ID",
+        "notification_subscriptions",
+    )
 
     cors_allowed_origins: tuple[str, ...] = _split_csv(
         os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173")

@@ -1,0 +1,16 @@
+SchoolPlannr is an open-source planner and grade tracker for students.
+
+Features:
+- Subject and timetable management
+- Task and reminder tracking
+- Grade recording and GPA tools
+- Cross-platform Flutter client
+
+Privacy and open-source notes:
+- The Android app source is fully available in this repository.
+- Backend API and service code used by the app is included in this monorepo.
+- No proprietary mobile analytics or ad SDK is bundled in Android.
+
+Network usage:
+- The app connects to a backend API for account and planner data sync.
+- You can self-host the backend/Appwrite stack from this repository.

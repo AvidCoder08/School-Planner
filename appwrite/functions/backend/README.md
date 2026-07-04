@@ -23,7 +23,14 @@ The function serves the same API routes used by Flutter:
 - `DELETE /events/{event_id}`
 - `GET /grades`
 - `POST /grades/{subject_id}`
+- `GET /notifications/preferences`
+- `PUT /notifications/preferences`
+- `GET /notifications/subscriptions`
+- `POST /notifications/subscriptions`
+- `DELETE /notifications/subscriptions/{subscription_id}`
 - `POST /attendance/pesu`
+
+The `GET /grades` response now returns a structured payload with a `grades` list and a `summary` object containing SGPA, CGPA, total credits, and the active term name.
 
 ## Function setup in Appwrite Console
 

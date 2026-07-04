@@ -1,0 +1,4 @@
+Initial F-Droid-ready open-source release.
+- Removed committed signing secrets
+- Added reproducible unsigned release build path
+- Added open-source licensing and metadata

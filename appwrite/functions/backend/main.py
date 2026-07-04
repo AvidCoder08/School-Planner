@@ -135,7 +135,7 @@ def _cors_headers(req: Any) -> Dict[str, str]:
     return {
         "access-control-allow-origin": allowed_origin,
         "access-control-allow-credentials": "true",
-        "access-control-allow-methods": "GET,POST,PATCH,DELETE,OPTIONS",
+        "access-control-allow-methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
         "access-control-allow-headers": "Content-Type,Authorization,x-user-id,x-appwrite-user-jwt",
         "vary": "Origin",
     }
@@ -595,7 +595,7 @@ def _list_grades(req: Any) -> Any:
     uid = _require_user_id(req)
     fs = AppwriteService.from_settings()
     try:
-        return fs.list_grades(uid)
+        return fs.get_grades_overview(uid)
     except AppwriteServiceError as exc:
         raise HttpError(400, str(exc)) from exc
 
@@ -644,6 +644,54 @@ def _fetch_pesu_attendance(req: Any) -> Dict[str, Any]:
             )
         )
     except PesuServiceError as exc:
+        raise HttpError(400, str(exc)) from exc
+
+
+def _get_notification_preferences(req: Any) -> Dict[str, Any]:
+    uid = _require_user_id(req)
+    fs = AppwriteService.from_settings()
+    try:
+        return fs.get_notification_preferences(uid)
+    except AppwriteServiceError as exc:
+        raise HttpError(400, str(exc)) from exc
+
+
+def _save_notification_preferences(req: Any) -> Dict[str, Any]:
+    uid = _require_user_id(req)
+    payload = _parse_body(req)
+    fs = AppwriteService.from_settings()
+    try:
+        return fs.save_notification_preferences(uid, payload)
+    except AppwriteServiceError as exc:
+        raise HttpError(400, str(exc)) from exc
+
+
+def _list_notification_subscriptions(req: Any) -> Any:
+    uid = _require_user_id(req)
+    fs = AppwriteService.from_settings()
+    try:
+        return fs.list_notification_subscriptions(uid)
+    except AppwriteServiceError as exc:
+        raise HttpError(400, str(exc)) from exc
+
+
+def _upsert_notification_subscription(req: Any) -> Dict[str, Any]:
+    uid = _require_user_id(req)
+    payload = _parse_body(req)
+    fs = AppwriteService.from_settings()
+    try:
+        return fs.upsert_notification_subscription(uid, payload)
+    except AppwriteServiceError as exc:
+        raise HttpError(400, str(exc)) from exc
+
+
+def _delete_notification_subscription(req: Any, subscription_id: str) -> Dict[str, Any]:
+    uid = _require_user_id(req)
+    fs = AppwriteService.from_settings()
+    try:
+        fs.delete_notification_subscription(uid, subscription_id)
+        return {"status": "deleted"}
+    except AppwriteServiceError as exc:
         raise HttpError(400, str(exc)) from exc
 
 
@@ -721,6 +769,26 @@ def _route(context: Any, req: Any):
 
     if method == "POST" and path == "/attendance/pesu":
         return _json_response(context, _fetch_pesu_attendance(req), req=req)
+
+    if method == "GET" and path == "/notifications/preferences":
+        return _json_response(context, _get_notification_preferences(req), req=req)
+
+    if method == "PUT" and path == "/notifications/preferences":
+        return _json_response(context, _save_notification_preferences(req), req=req)
+
+    if method == "GET" and path == "/notifications/subscriptions":
+        return _json_response(context, _list_notification_subscriptions(req), req=req)
+
+    if method == "POST" and path == "/notifications/subscriptions":
+        return _json_response(context, _upsert_notification_subscription(req), req=req)
+
+    notification_subscription_match = re.fullmatch(r"/notifications/subscriptions/([^/]+)", path)
+    if method == "DELETE" and notification_subscription_match:
+        return _json_response(
+            context,
+            _delete_notification_subscription(req, notification_subscription_match.group(1)),
+            req=req,
+        )
 
     raise HttpError(404, "Not found")
 

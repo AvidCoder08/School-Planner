@@ -1,0 +1,7 @@
+# Copy this file to key.properties for local Play Store/manual release signing.
+# Do not commit key.properties to git.
+
+storePassword=CHANGE_ME
+keyPassword=CHANGE_ME
+keyAlias=upload
+storeFile=/absolute/path/to/your-upload-keystore.jks
